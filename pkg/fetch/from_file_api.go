@@ -15,18 +15,7 @@ func FromFile(logger *logrus.Logger, path string) (_ contracts.Fetcher, ferr err
 		return nil, err
 	}
 
-	fetcher := &fromFile{fromFileCache: *cache}
-	defer func() {
-		if ferr != nil {
-			fetcher.Close()
-		}
-	}()
-
-	_, err = fetcher.SubCaches()
-	if err != nil {
-		return nil, err
-	}
-	return fetcher, nil
+	return newFetcher(logger, cache, &fromFileProcessor{})
 }
 
 func ScanForFileWithArchitecture(logger *logrus.Logger, arch string) (contracts.Fetcher, error) {

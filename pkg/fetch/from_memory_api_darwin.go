@@ -18,22 +18,12 @@ func FromMemory(logger *logrus.Logger) (contracts.Fetcher, error) {
 	if res != 0 {
 		return nil, fmt.Errorf("shared_region_check_np returned %d", res)
 	}
-	return nil, nil
-}
+	logger.Debugf("shared_region_check_np returned: %#x", dsc)
 
-type fromMemory struct {
-	dsc uintptr
-}
+	cache, err := cacheFromMemory(logger, dsc)
+	if err != nil {
+		return nil, err
+	}
 
-func (me fromMemory) Close() error {
-	return nil
-}
-
-func (me fromMemory) Header() uintptr {
-	return me.dsc
-}
-
-func (me fromMemory) SubCaches() ([]contracts.Cache, error) {
-	// TODO: wrong
-	return nil, nil
+	return newFetcher(logger, cache, &fromMemoryProcessor{})
 }
