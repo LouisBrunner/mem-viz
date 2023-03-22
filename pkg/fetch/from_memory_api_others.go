@@ -7,6 +7,6 @@ import (
 	"fmt"
 )
 
-func FromMemory(logger *logrus.Logger) (Fetcher, error) {
-	return nil, fmt.Errorf("not available on this platform")
+func sharedRegionCheckNP() (uintptr, error) {
+	return 0, fmt.Errorf("not available on this platform")
 }

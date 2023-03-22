@@ -20,9 +20,14 @@ func (me *fromMemoryReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
+// suppress go vet warning
+func unsafeExternPointer(addr uintptr) unsafe.Pointer {
+	return *(*unsafe.Pointer)(unsafe.Pointer(&addr))
+}
+
 func (me *fromMemoryReader) ReadAt(p []byte, off int64) (int, error) {
 	for i := range p {
-		p[i] = *(*byte)(unsafe.Pointer(me.pointer + uintptr(off) + uintptr(i)))
+		p[i] = *(*byte)(unsafeExternPointer(me.pointer + uintptr(off) + uintptr(i)))
 	}
 	return len(p), nil
 }

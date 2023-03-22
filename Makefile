@@ -19,5 +19,5 @@ build:
 .PHONY: build
 
 debug:
-	DEBUG=y go run ./cmd/dsc-viz
+	DEBUG=y go run -- ./cmd/dsc-viz $(ARGS)
 .PHONY: debug
