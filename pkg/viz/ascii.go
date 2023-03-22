@@ -6,6 +6,6 @@ import (
 	"github.com/LouisBrunner/dsc-viz/pkg/contracts"
 )
 
-func OutputASCII(m contracts.MemoryBlock) (string, error) {
-	return "", fmt.Errorf("not implemented")
+func (me *outputter) ASCII(m contracts.MemoryBlock) error {
+	return fmt.Errorf("not implemented")
 }

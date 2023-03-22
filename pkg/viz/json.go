@@ -6,10 +6,11 @@ import (
 	"github.com/LouisBrunner/dsc-viz/pkg/contracts"
 )
 
-func OutputJSON(m contracts.MemoryBlock) (string, error) {
+func (me *outputter) JSON(m contracts.MemoryBlock) error {
 	raw, err := json.Marshal(m)
 	if err != nil {
-		return "", err
+		return err
 	}
-	return string(raw), nil
+	_, err = me.w.Write(raw)
+	return err
 }
