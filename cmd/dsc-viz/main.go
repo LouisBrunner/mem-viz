@@ -6,6 +6,8 @@ import (
 
 	"github.com/LouisBrunner/dsc-viz/pkg/contracts"
 	"github.com/LouisBrunner/dsc-viz/pkg/fetch"
+	"github.com/LouisBrunner/dsc-viz/pkg/parse"
+	"github.com/LouisBrunner/dsc-viz/pkg/viz"
 	"github.com/sirupsen/logrus"
 )
 
@@ -59,7 +61,24 @@ func work() (bool, error) {
 		return false, fmt.Errorf("no source specified")
 	}
 
-	fmt.Printf("fetcher: %v\n", fetcher)
-	// TODO: more processing
+	mb, err := parse.Parse(fetcher)
+	if err != nil {
+		return false, err
+	}
+
+	var output string
+	switch params.outputFormat {
+	case outputFormatGraphviz:
+		output, err = viz.OutputGraphviz(*mb)
+	case outputFormatLaTeX:
+		output, err = viz.OutputLaTeX(*mb)
+	default:
+		return false, fmt.Errorf("unknown output format: %s", params.outputFormat)
+	}
+	if err != nil {
+		return false, err
+	}
+
+	fmt.Println(output)
 	return true, nil
 }

@@ -6,6 +6,7 @@ import (
 )
 
 type fromMemoryReader struct {
+	// FIXME: would be nice to have a size too?
 	pointer uintptr
 	off     int64
 	mutex   sync.Mutex
