@@ -30,6 +30,10 @@ func (me *fromFileCache) Header() contracts.DYLDCacheHeaderV3 {
 	return me.header
 }
 
+func (me *fromFileCache) BaseAddress() uintptr {
+	return 0
+}
+
 func (me *fromFileCache) String() string {
 	return fmt.Sprintf("File{path: %s, header: %+v}", me.file.Name(), me.header)
 }

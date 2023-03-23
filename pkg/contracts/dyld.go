@@ -102,7 +102,7 @@ type DYLDCacheAcceleratorDof struct {
 }
 
 type DYLDCacheImageTextInfo struct {
-	UUID            [16]byte
+	UUID            [16]uint8
 	LoadAddress     uint64
 	TextSegmentSize uint32
 	PathOffset      uint32
@@ -251,8 +251,8 @@ type DYLDCacheLocalSymbolsEntry64 struct {
 }
 
 type DYLDSubcacheEntryV1 struct {
-	UUID          [16]byte // The UUID of the subCache file
-	CacheVmOffset uint64   // The offset of this subcache from the main cache base address
+	UUID          [16]uint8 // The UUID of the subCache file
+	CacheVmOffset uint64    // The offset of this subcache from the main cache base address
 }
 
 type DYLDSubcacheEntryV2 struct {

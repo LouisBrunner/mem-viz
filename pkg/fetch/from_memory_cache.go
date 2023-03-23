@@ -21,6 +21,10 @@ func (me *fromMemoryCache) Header() contracts.DYLDCacheHeaderV3 {
 	return me.header
 }
 
+func (me *fromMemoryCache) BaseAddress() uintptr {
+	return me.pointer
+}
+
 func (me *fromMemoryCache) ReaderAtOffset(off int64) io.Reader {
 	return &fromMemoryReader{pointer: me.pointer + uintptr(off)}
 }
