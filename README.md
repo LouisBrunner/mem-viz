@@ -1,3 +1,5 @@
+// TODO: rebrand as mem-viz with dsc-viz as a separate tool
+
 # `dsc-viz`
 
 This tool allows to display the format of a dyld shared cache (DSC) file. It is also able to read the kernel-provided DSC in its memory.

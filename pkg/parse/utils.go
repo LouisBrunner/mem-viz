@@ -56,6 +56,7 @@ func createBlock[T any](parent *contracts.MemoryBlock, data T, label string, off
 
 func formatValue(name string, value interface{}) string {
 	formatInteger := func() string {
+		// FIXME: would be nice to have more specialized formats, e.g. for OSVersion or CacheType
 		return fmt.Sprintf("%d (%#x)", value, value)
 	}
 

@@ -1,5 +1,14 @@
 package contracts
 
+// Expected guarantiees:
+// - MemoryBlock.Content is ordered by Address (ASC)
+// - MemoryBlock.Values is ordered by Offset (ASC)
+// - MemoryValue.Links might be unordered
+// - All Address are absolute
+// - Parent.Address + MemoryBlock.ParentOffset == MemoryBlock.Address
+// - Size can be 0 (always use MemoryBlock.GetSize)
+// - If it isn't, MemoryBlock.Content should all fit inside the MemoryBlock (MemoryBlock.Address, MemoryBlock.Address + MemoryBlock.Size)
+
 type MemoryBlock struct {
 	Name         string
 	Address      uintptr
