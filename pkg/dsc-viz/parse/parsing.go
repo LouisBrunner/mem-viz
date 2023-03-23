@@ -15,7 +15,7 @@ func parseAndAdd[T any](r io.Reader, parent *contracts.MemoryBlock, from *contra
 	if err != nil {
 		return nil, err
 	}
-	block := createBlock(parent, data, label, offset)
+	block := createStructBlock(parent, data, label, offset)
 	return block, nil
 }
 
@@ -41,7 +41,7 @@ func parseAndAddMultipleStructs[T any](cache subcontracts.Cache, inside *contrac
 	}
 
 	offsetFromDefiner := from.ParentOffset + offset
-	arrayBlock := createBlock[interface{}](inside, nil, fmt.Sprintf("%ss (%d)", label, count), offsetFromDefiner)
+	arrayBlock := createEmptyBlock(inside, fmt.Sprintf("%ss (%d)", label, count), offsetFromDefiner)
 
 	if count == 0 {
 		return nil, nil

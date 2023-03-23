@@ -2,13 +2,32 @@ package parse
 
 import (
 	"fmt"
-	"reflect"
-	"unsafe"
 
 	"github.com/LouisBrunner/mem-viz/pkg/commons"
 	"github.com/LouisBrunner/mem-viz/pkg/contracts"
 	"golang.org/x/exp/slices"
 )
+
+func createCommonBlock(parent *contracts.MemoryBlock, label string, offset, size uint64) *contracts.MemoryBlock {
+	block := &contracts.MemoryBlock{
+		Name:         label,
+		Address:      parent.Address + uintptr(offset),
+		Size:         size,
+		ParentOffset: offset,
+	}
+	addChild(parent, block)
+	return block
+}
+
+func addChild(parent, child *contracts.MemoryBlock) {
+	for i, curr := range parent.Content {
+		if curr.Address > child.Address {
+			parent.Content = slices.Insert(parent.Content, i, child)
+			return
+		}
+	}
+	parent.Content = append(parent.Content, child)
+}
 
 func addLink(parent *contracts.MemoryBlock, parentValueName string, child *contracts.MemoryBlock, linkName string) error {
 	for i := range parent.Values {
@@ -24,42 +43,6 @@ func addLink(parent *contracts.MemoryBlock, parentValueName string, child *contr
 	}
 
 	return fmt.Errorf("could not find value %q in parent %+v", parentValueName, parent)
-}
-
-func createBlock[T any](parent *contracts.MemoryBlock, data T, label string, offset uint64) *contracts.MemoryBlock {
-	empty := interface{}(data) == nil
-	size := uint64(0)
-	if !empty {
-		size = uint64(unsafe.Sizeof(data))
-	}
-
-	headerBlock := &contracts.MemoryBlock{
-		Name:         label,
-		Address:      parent.Address + uintptr(offset),
-		Size:         size,
-		ParentOffset: offset,
-	}
-
-	if !empty {
-		val := reflect.ValueOf(data)
-		typ := reflect.TypeOf(data)
-		for _, field := range reflect.VisibleFields(typ) {
-			fieldType := field.Type
-			if fieldType.Kind() == reflect.Struct && field.Anonymous {
-				continue
-			}
-
-			headerBlock.Values = append(headerBlock.Values, &contracts.MemoryValue{
-				Name:   field.Name,
-				Value:  formatValue(field.Name, val.FieldByIndex(field.Index).Interface()),
-				Offset: uint64(field.Offset),
-				Size:   uint8(fieldType.Size()),
-			})
-		}
-	}
-
-	addChild(parent, headerBlock)
-	return headerBlock
 }
 
 func formatValue(name string, value interface{}) string {
@@ -102,14 +85,4 @@ func formatValue(name string, value interface{}) string {
 		return commons.FromCString(v[:])
 	}
 	return fmt.Sprintf("%v", value)
-}
-
-func addChild(parent, child *contracts.MemoryBlock) {
-	for i, curr := range parent.Content {
-		if curr.Address > child.Address {
-			parent.Content = slices.Insert(parent.Content, i, child)
-			return
-		}
-	}
-	parent.Content = append(parent.Content, child)
 }
