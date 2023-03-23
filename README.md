@@ -7,7 +7,7 @@ This tool allows to display the format of a dyld shared cache (DSC) file. It is 
 ## Installation
 
 ```sh
-go install github.com/LouisBrunner/dsc-viz@latest
+go install github.com/LouisBrunner/mem-viz@latest
 ```
 
 ## Usage

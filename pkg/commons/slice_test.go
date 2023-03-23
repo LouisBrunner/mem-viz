@@ -3,7 +3,7 @@ package commons_test
 import (
 	"testing"
 
-	"github.com/LouisBrunner/dsc-viz/pkg/commons"
+	"github.com/LouisBrunner/mem-viz/pkg/commons"
 	"github.com/stretchr/testify/assert"
 )
 

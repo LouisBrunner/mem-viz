@@ -1,11 +1,11 @@
-package fetch
+package commons
 
 import (
 	"encoding/json"
 	"io"
 	"os"
 
-	"github.com/LouisBrunner/dsc-viz/pkg/contracts"
+	"github.com/LouisBrunner/mem-viz/pkg/contracts"
 	"github.com/sirupsen/logrus"
 )
 

@@ -3,7 +3,7 @@ package viz
 import (
 	"fmt"
 
-	"github.com/LouisBrunner/dsc-viz/pkg/contracts"
+	"github.com/LouisBrunner/mem-viz/pkg/contracts"
 )
 
 func (me *outputter) Text(m contracts.MemoryBlock) error {

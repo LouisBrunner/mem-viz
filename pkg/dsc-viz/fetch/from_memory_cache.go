@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/LouisBrunner/dsc-viz/pkg/commons"
-	"github.com/LouisBrunner/dsc-viz/pkg/contracts"
+	"github.com/LouisBrunner/mem-viz/pkg/commons"
+	"github.com/LouisBrunner/mem-viz/pkg/dsc-viz/contracts"
 	"github.com/sirupsen/logrus"
 )
 

@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"unsafe"
 
-	"github.com/LouisBrunner/dsc-viz/pkg/contracts"
+	"github.com/LouisBrunner/mem-viz/pkg/contracts"
+	subcontracts "github.com/LouisBrunner/mem-viz/pkg/dsc-viz/contracts"
 )
 
-func addCache(parent *contracts.MemoryBlock, cache contracts.Cache, label string, offset uint64) (*contracts.MemoryBlock, *contracts.MemoryBlock, error) {
+func addCache(parent *contracts.MemoryBlock, cache subcontracts.Cache, label string, offset uint64) (*contracts.MemoryBlock, *contracts.MemoryBlock, error) {
 	block := createBlock[interface{}](parent, nil, fmt.Sprintf("%s Area", label), offset)
 
 	header := cache.Header()
@@ -19,14 +20,14 @@ func addCache(parent *contracts.MemoryBlock, cache contracts.Cache, label string
 	} else {
 		headerBlock = createBlock(block, header, fmt.Sprintf("%s (V3)", label), 0)
 	}
-	_, err := parseAndAddMultipleStructs(cache, block, headerBlock, "MappingOffset", uint64(header.MappingOffset), "MappingCount", uint64(header.MappingCount), contracts.DYLDCacheMappingInfo{}, "Mapping")
+	_, err := parseAndAddMultipleStructs(cache, block, headerBlock, "MappingOffset", uint64(header.MappingOffset), "MappingCount", uint64(header.MappingCount), subcontracts.DYLDCacheMappingInfo{}, "Mapping")
 	if err != nil {
 		return nil, nil, err
 	}
 	return block, headerBlock, nil
 }
 
-func addSubCacheEntry(parent, headerBlock, subCache *contracts.MemoryBlock, header contracts.DYLDCacheHeaderV3, v2 *contracts.DYLDSubcacheEntryV2, v1 *contracts.DYLDSubcacheEntryV1, index uint64) error {
+func addSubCacheEntry(parent, headerBlock, subCache *contracts.MemoryBlock, header subcontracts.DYLDCacheHeaderV3, v2 *subcontracts.DYLDSubcacheEntryV2, v1 *subcontracts.DYLDSubcacheEntryV1, index uint64) error {
 	var block *contracts.MemoryBlock
 	label := "Subcache Entry"
 	if v2 != nil {

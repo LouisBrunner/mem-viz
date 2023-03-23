@@ -3,11 +3,12 @@ package parse
 import (
 	"fmt"
 
-	"github.com/LouisBrunner/dsc-viz/pkg/commons"
-	"github.com/LouisBrunner/dsc-viz/pkg/contracts"
+	"github.com/LouisBrunner/mem-viz/pkg/commons"
+	"github.com/LouisBrunner/mem-viz/pkg/contracts"
+	subcontracts "github.com/LouisBrunner/mem-viz/pkg/dsc-viz/contracts"
 )
 
-func Parse(fetcher contracts.Fetcher) (*contracts.MemoryBlock, error) {
+func Parse(fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, error) {
 	root := &contracts.MemoryBlock{
 		Name:    "DSC",
 		Address: fetcher.BaseAddress(),

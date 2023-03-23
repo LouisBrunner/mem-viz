@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"unsafe"
 
-	"github.com/LouisBrunner/dsc-viz/pkg/commons"
-	"github.com/LouisBrunner/dsc-viz/pkg/contracts"
+	"github.com/LouisBrunner/mem-viz/pkg/commons"
+	"github.com/LouisBrunner/mem-viz/pkg/contracts"
 	"golang.org/x/exp/slices"
 )
 

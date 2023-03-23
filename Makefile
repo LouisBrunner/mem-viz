@@ -1,4 +1,4 @@
-all: lint test
+all: lint test build
 .PHONY: all
 
 setup:
@@ -14,10 +14,21 @@ test:
 	go test -v ./...
 .PHONY: test
 
-build:
-	go build ./cmd/dsc-viz
+build: mem-viz dsc-viz
 .PHONY: build
 
-debug:
+mem-viz:
+	go build ./cmd/mem-viz
+.PHONY: dsc-viz
+
+dsc-viz:
+	go build ./cmd/dsc-viz
+.PHONY: dsc-viz
+
+debug-mem:
+	DEBUG=y go run -- ./cmd/mem-viz $(ARGS)
+.PHONY: debug
+
+debug-dsc:
 	DEBUG=y go run -- ./cmd/dsc-viz $(ARGS)
 .PHONY: debug

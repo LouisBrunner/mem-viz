@@ -1,4 +1,4 @@
-module github.com/LouisBrunner/dsc-viz
+module github.com/LouisBrunner/mem-viz
 
 go 1.19
 

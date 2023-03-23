@@ -1,7 +1,7 @@
 package fetch
 
 import (
-	"github.com/LouisBrunner/dsc-viz/pkg/contracts"
+	"github.com/LouisBrunner/mem-viz/pkg/dsc-viz/contracts"
 	"github.com/sirupsen/logrus"
 )
 

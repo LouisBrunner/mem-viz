@@ -3,7 +3,7 @@ package viz
 import (
 	"encoding/json"
 
-	"github.com/LouisBrunner/dsc-viz/pkg/contracts"
+	"github.com/LouisBrunner/mem-viz/pkg/contracts"
 )
 
 func (me *outputter) JSON(m contracts.MemoryBlock) error {

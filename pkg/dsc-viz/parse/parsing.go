@@ -5,8 +5,9 @@ import (
 	"io"
 	"unsafe"
 
-	"github.com/LouisBrunner/dsc-viz/pkg/commons"
-	"github.com/LouisBrunner/dsc-viz/pkg/contracts"
+	"github.com/LouisBrunner/mem-viz/pkg/commons"
+	"github.com/LouisBrunner/mem-viz/pkg/contracts"
+	subcontracts "github.com/LouisBrunner/mem-viz/pkg/dsc-viz/contracts"
 )
 
 func parseAndAdd[T any](r io.Reader, parent *contracts.MemoryBlock, from *contracts.MemoryBlock, offset uint64, data T, label string) (*contracts.MemoryBlock, error) {
@@ -18,7 +19,7 @@ func parseAndAdd[T any](r io.Reader, parent *contracts.MemoryBlock, from *contra
 	return block, nil
 }
 
-func parseAndAddStruct[T any](cache contracts.Cache, inside *contracts.MemoryBlock, from *contracts.MemoryBlock, fieldName string, offset uint64, data T, label string) (*contracts.MemoryBlock, error) {
+func parseAndAddStruct[T any](cache subcontracts.Cache, inside *contracts.MemoryBlock, from *contracts.MemoryBlock, fieldName string, offset uint64, data T, label string) (*contracts.MemoryBlock, error) {
 	if offset == 0 {
 		return nil, nil
 	}
@@ -34,7 +35,7 @@ func parseAndAddStruct[T any](cache contracts.Cache, inside *contracts.MemoryBlo
 	return block, nil
 }
 
-func parseAndAddMultipleStructs[T any](cache contracts.Cache, inside *contracts.MemoryBlock, from *contracts.MemoryBlock, fieldName string, offset uint64, countFieldName string, count uint64, data T, label string) ([]*contracts.MemoryBlock, error) {
+func parseAndAddMultipleStructs[T any](cache subcontracts.Cache, inside *contracts.MemoryBlock, from *contracts.MemoryBlock, fieldName string, offset uint64, countFieldName string, count uint64, data T, label string) ([]*contracts.MemoryBlock, error) {
 	if offset == 0 {
 		return nil, nil
 	}
