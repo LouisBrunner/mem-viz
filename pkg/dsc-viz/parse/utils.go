@@ -48,7 +48,7 @@ func addLink(parent *contracts.MemoryBlock, parentValueName string, child *contr
 func formatValue(name string, value interface{}) string {
 	formatInteger := func() string {
 		// FIXME: would be nice to have more specialized formats, e.g. for OSVersion or CacheType
-		return fmt.Sprintf("%d (%#x)", value, value)
+		return fmt.Sprintf("%#x", value)
 	}
 
 	switch v := value.(type) {

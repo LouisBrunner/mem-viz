@@ -3,6 +3,7 @@ module github.com/LouisBrunner/mem-viz
 go 1.19
 
 require (
+	github.com/dustin/go-humanize v1.0.1
 	github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/pflag v1.0.5
