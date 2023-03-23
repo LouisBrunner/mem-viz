@@ -3,9 +3,9 @@ package parse
 import (
 	"fmt"
 	"reflect"
-	"strings"
 	"unsafe"
 
+	"github.com/LouisBrunner/dsc-viz/pkg/commons"
 	"github.com/LouisBrunner/dsc-viz/pkg/contracts"
 	"golang.org/x/exp/slices"
 )
@@ -27,27 +27,35 @@ func addLink(parent *contracts.MemoryBlock, parentValueName string, child *contr
 }
 
 func createBlock[T any](parent *contracts.MemoryBlock, data T, label string, offset uint64) *contracts.MemoryBlock {
+	empty := interface{}(data) == nil
+	size := uint64(0)
+	if !empty {
+		size = uint64(unsafe.Sizeof(data))
+	}
+
 	headerBlock := &contracts.MemoryBlock{
 		Name:         label,
 		Address:      parent.Address + uintptr(offset),
-		Size:         uint64(unsafe.Sizeof(data)),
+		Size:         size,
 		ParentOffset: offset,
 	}
 
-	val := reflect.ValueOf(data)
-	typ := reflect.TypeOf(data)
-	for _, field := range reflect.VisibleFields(typ) {
-		fieldType := field.Type
-		if fieldType.Kind() == reflect.Struct && field.Anonymous {
-			continue
-		}
+	if !empty {
+		val := reflect.ValueOf(data)
+		typ := reflect.TypeOf(data)
+		for _, field := range reflect.VisibleFields(typ) {
+			fieldType := field.Type
+			if fieldType.Kind() == reflect.Struct && field.Anonymous {
+				continue
+			}
 
-		headerBlock.Values = append(headerBlock.Values, &contracts.MemoryValue{
-			Name:   field.Name,
-			Value:  formatValue(field.Name, val.FieldByIndex(field.Index).Interface()),
-			Offset: uint64(field.Offset),
-			Size:   uint8(fieldType.Size()),
-		})
+			headerBlock.Values = append(headerBlock.Values, &contracts.MemoryValue{
+				Name:   field.Name,
+				Value:  formatValue(field.Name, val.FieldByIndex(field.Index).Interface()),
+				Offset: uint64(field.Offset),
+				Size:   uint8(fieldType.Size()),
+			})
+		}
 	}
 
 	addChild(parent, headerBlock)
@@ -89,9 +97,9 @@ func formatValue(name string, value interface{}) string {
 				v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15],
 			)
 		}
-		return strings.TrimRight(string(v[:]), "\x00") // FIXME: surely there is a way to build a utils for this?
+		return commons.FromCString(v[:])
 	case [32]byte:
-		return strings.TrimRight(string(v[:]), "\x00")
+		return commons.FromCString(v[:])
 	}
 	return fmt.Sprintf("%v", value)
 }

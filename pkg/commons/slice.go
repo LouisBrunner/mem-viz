@@ -1,4 +1,4 @@
-package utils
+package commons
 
 func MapSlice[T, U any](in []T, mapper func(in T) U) []U {
 	out := make([]U, 0, len(in))

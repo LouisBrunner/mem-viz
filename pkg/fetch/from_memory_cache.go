@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/LouisBrunner/dsc-viz/pkg/commons"
 	"github.com/LouisBrunner/dsc-viz/pkg/contracts"
 	"github.com/sirupsen/logrus"
 )
@@ -44,7 +45,7 @@ func cacheFromMemory(logger *logrus.Logger, pointer uintptr) (_ *fromMemoryCache
 	}()
 
 	mem := &fromMemoryCache{pointer: pointer}
-	err := unpack(mem.ReaderAtOffset(0), &mem.header)
+	err := commons.Unpack(mem.ReaderAtOffset(0), &mem.header)
 	if err != nil {
 		return nil, err
 	}

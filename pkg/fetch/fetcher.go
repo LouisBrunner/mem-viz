@@ -5,6 +5,7 @@ import (
 	"io"
 	"unsafe"
 
+	"github.com/LouisBrunner/dsc-viz/pkg/commons"
 	"github.com/LouisBrunner/dsc-viz/pkg/contracts"
 	"github.com/sirupsen/logrus"
 )
@@ -75,7 +76,7 @@ func (me *fetcher[T, F]) fetchSubCaches() error {
 		if !v2 {
 			cacheHeaderV2 = &contracts.DYLDSubcacheEntryV2{}
 			offset := int64(header.SubCacheArrayOffset) + i*int64(unsafe.Sizeof(*cacheHeaderV2))
-			err = unpack(me.main.ReaderAtOffset(offset), cacheHeaderV2)
+			err = commons.Unpack(me.main.ReaderAtOffset(offset), cacheHeaderV2)
 			if err != nil {
 				return err
 			}
@@ -83,7 +84,7 @@ func (me *fetcher[T, F]) fetchSubCaches() error {
 		} else {
 			cacheHeaderV1 = &contracts.DYLDSubcacheEntryV1{}
 			offset := int64(header.SubCacheArrayOffset) + i*int64(unsafe.Sizeof(*cacheHeaderV1))
-			err = unpack(me.main.ReaderAtOffset(offset), &cacheHeaderV1)
+			err = commons.Unpack(me.main.ReaderAtOffset(offset), &cacheHeaderV1)
 			if err != nil {
 				return err
 			}

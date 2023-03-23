@@ -1,4 +1,4 @@
-package fetch
+package commons
 
 import (
 	"encoding/binary"
@@ -11,6 +11,6 @@ var unpackOptions = &struc.Options{
 	Order: binary.LittleEndian,
 }
 
-func unpack(r io.Reader, v interface{}) error {
+func Unpack(r io.Reader, v interface{}) error {
 	return struc.UnpackWithOptions(r, v, unpackOptions)
 }

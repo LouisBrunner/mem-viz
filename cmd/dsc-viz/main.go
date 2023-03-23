@@ -122,6 +122,8 @@ func work() error {
 		logger.Debug("skipping the parsing, we got JSON")
 	}
 
+	// TODO: check guarantees
+
 	outputFn, cleanupFn, err := getOutput(logger, params.outputFormat, params.outputFile)
 	if err != nil {
 		return err

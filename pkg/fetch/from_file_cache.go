@@ -5,8 +5,8 @@ import (
 	"io"
 	"math"
 	"os"
-	"strings"
 
+	"github.com/LouisBrunner/dsc-viz/pkg/commons"
 	"github.com/LouisBrunner/dsc-viz/pkg/contracts"
 	"github.com/sirupsen/logrus"
 )
@@ -40,7 +40,7 @@ func (me *fromFileCache) String() string {
 
 func cacheFromFile(logger *logrus.Logger, file *os.File) (*fromFileCache, error) {
 	cache := &fromFileCache{logger: logger, file: file}
-	err := unpack(file, &cache.header)
+	err := commons.Unpack(file, &cache.header)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +76,7 @@ func cacheFromPath(logger *logrus.Logger, path string) (_ *fromFileCache, ferr e
 type fromFileProcessor struct{}
 
 func (me fromFileProcessor) CacheFromEntryV2(logger *logrus.Logger, main *fromFileCache, i int64, entry contracts.DYLDSubcacheEntryV2) (contracts.Cache, error) {
-	suffix := strings.TrimRight(string(entry.FileSuffix[:]), "\x00")
+	suffix := commons.FromCString(entry.FileSuffix[:])
 	return cacheFromPath(logger, fmt.Sprintf("%s%s", main.file.Name(), suffix))
 }
 

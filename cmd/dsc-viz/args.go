@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
-	"github.com/LouisBrunner/dsc-viz/pkg/utils"
+	"github.com/LouisBrunner/dsc-viz/pkg/commons"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"golang.org/x/exp/slices"
@@ -31,9 +32,7 @@ var fromSources = []string{
 	"from-json-text",
 }
 
-var fromSourcesHelp = strings.Join(utils.MapSlice(fromSources, func(s string) string {
-	return fmt.Sprintf("%q", s)
-}), ", ")
+var fromSourcesHelp = strings.Join(commons.MapSlice(fromSources, strconv.Quote), ", ")
 
 const (
 	outputFormatGraphviz = "graphviz"
@@ -53,9 +52,7 @@ var outputFormats = []string{
 	outputFormatJSON,
 }
 
-var outputFormatsHelp = strings.Join(utils.MapSlice(outputFormats, func(s string) string {
-	return fmt.Sprintf("%q", s)
-}), ", ")
+var outputFormatsHelp = strings.Join(commons.MapSlice(outputFormats, strconv.Quote), ", ")
 
 func getArgs() (*args, error) {
 	params := &args{
