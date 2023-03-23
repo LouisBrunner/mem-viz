@@ -41,7 +41,7 @@ func parseAndAddMultipleStructs[T any](cache subcontracts.Cache, inside *contrac
 	}
 
 	offsetFromDefiner := from.ParentOffset + offset
-	arrayBlock := createEmptyBlock(inside, fmt.Sprintf("%ss (%d)", label, count), offsetFromDefiner)
+	arrayBlock := createEmptyBlock(inside, fmt.Sprintf("%s (%d)", label, count), offsetFromDefiner)
 
 	if count == 0 {
 		return nil, nil

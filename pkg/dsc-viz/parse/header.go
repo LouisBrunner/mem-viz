@@ -22,7 +22,7 @@ func addCache(parent *contracts.MemoryBlock, cache subcontracts.Cache, label str
 	} else {
 		headerBlock = createStructBlock(block, header, fmt.Sprintf("%s (V3)", label), 0)
 	}
-	_, err := parseAndAddMultipleStructs(cache, block, headerBlock, "MappingOffset", uint64(header.MappingOffset), "MappingCount", uint64(header.MappingCount), subcontracts.DYLDCacheMappingInfo{}, "Mapping")
+	_, err := parseAndAddMultipleStructs(cache, block, headerBlock, "MappingOffset", uint64(header.MappingOffset), "MappingCount", uint64(header.MappingCount), subcontracts.DYLDCacheMappingInfo{}, "Mappings")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -120,7 +120,60 @@ func addCache(parent *contracts.MemoryBlock, cache subcontracts.Cache, label str
 	if okV1 {
 		return block, headerBlock, nil
 	}
-	// TODO: continue!
+	_, err = parseAndAddMultipleStructs(cache, block, headerBlock, "MappingWithSlideOffset", uint64(header.MappingWithSlideOffset), "MappingWithSlideCount", uint64(header.MappingWithSlideCount), subcontracts.DYLDCacheMappingAndSlideInfo{}, "Mappings With Slide")
+	if err != nil {
+		return nil, nil, err
+	}
+	// TODO: dig deeper in each mapping with slide
+	err = addLink(headerBlock, "DylibsPblSetAddr", &contracts.MemoryBlock{Address: block.Address + uintptr(header.DylibsPblSetAddr)}, "points to")
+	if err != nil {
+		return nil, nil, err
+	}
+	_, err = createBlobBlock(block, headerBlock, "ProgramsPblSetPoolAddr", uint64(header.ProgramsPblSetPoolAddr), "ProgramsPblSetPoolSize", uint64(header.ProgramsPblSetPoolSize), "PrebuiltLoaderSet for each program")
+	if err != nil {
+		return nil, nil, err
+	}
+	_, err = createBlobBlock(block, headerBlock, "ProgramTrieAddr", uint64(header.ProgramTrieAddr), "ProgramTrieSize", uint64(header.ProgramTrieSize), "PrebuiltLoaderSet for each program (Trie)")
+	if err != nil {
+		return nil, nil, err
+	}
+	_, err = createBlobBlock(block, headerBlock, "SwiftOptsOffset", uint64(header.SwiftOptsOffset), "SwiftOptsSize", uint64(header.SwiftOptsSize), "Swift Optimizations Header")
+	if err != nil {
+		return nil, nil, err
+	}
+	_, err = createBlobBlock(block, headerBlock, "RosettaReadOnlyAddr", uint64(header.RosettaReadOnlyAddr), "RosettaReadOnlySize", uint64(header.RosettaReadOnlySize), "Rosetta Read-Only Region")
+	if err != nil {
+		return nil, nil, err
+	}
+	_, err = createBlobBlock(block, headerBlock, "RosettaReadWriteAddr", uint64(header.RosettaReadWriteAddr), "RosettaReadWriteSize", uint64(header.RosettaReadWriteSize), "Rosetta Read-Write Region")
+	if err != nil {
+		return nil, nil, err
+	}
+	_, err = parseAndAddMultipleStructs(cache, block, headerBlock, "ImagesOffset", uint64(header.ImagesOffset), "ImagesCount", uint64(header.ImagesCount), subcontracts.DYLDCacheImageInfo{}, "Images")
+	if err != nil {
+		return nil, nil, err
+	}
+	// TODO: dig deeper in each image
+	if okV2 {
+		return block, headerBlock, nil
+	}
+	_, err = createBlobBlock(block, headerBlock, "ObjcOptsOffset", uint64(header.ObjcOptsOffset), "ObjcOptsSize", uint64(header.ObjcOptsSize), "Objective-C Optimizations Header")
+	if err != nil {
+		return nil, nil, err
+	}
+	_, err = createBlobBlock(block, headerBlock, "CacheAtlasOffset", uint64(header.CacheAtlasOffset), "CacheAtlasSize", uint64(header.CacheAtlasSize), "Cache Atlas")
+	if err != nil {
+		return nil, nil, err
+	}
+	_, err = createBlobBlock(block, headerBlock, "DynamicDataOffset", uint64(header.DynamicDataOffset), "DynamicDataMaxSize", uint64(header.DynamicDataMaxSize), "DYLD Cache Dynamic Data")
+	if err != nil {
+		return nil, nil, err
+	}
+	// FIXME: somehow we can't read this :(
+	// _, err = parseAndAddStruct(cache, dcdd, headerBlock, "DynamicDataHeader", uint64(header.DynamicDataOffset), subcontracts.DYLDCacheDynamicDataHeader{}, "DYLD Cache Dynamic Data Header")
+	// if err != nil {
+	// 	return nil, nil, err
+	// }
 	return block, headerBlock, nil
 }
 
