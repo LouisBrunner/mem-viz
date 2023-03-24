@@ -14,6 +14,8 @@ import (
 )
 
 func (me *outputter) Text(m contracts.MemoryBlock) error {
+	const indentStr = "  "
+
 	indent := func(depth int, s string) string {
 		return strings.Repeat(s, depth)
 	}
@@ -43,13 +45,16 @@ func (me *outputter) Text(m contracts.MemoryBlock) error {
 	formatNoAddr := "%17s"
 	formatSize := "[%6s]"
 	formatNoSize := "%8s"
-	formatLink := fmt.Sprintf("%s%s %s <- %%s\n", formatAddr, formatNoAddr, formatNoSize)
-	formatMem := fmt.Sprintf("%s%s %s %%s%%s%%s%%s\n", formatAddr, formatAddr, formatSize)
-	formatUnused := fmt.Sprintf("%s%s %s unused\n", formatAddr, formatAddr, formatSize)
+	formatLink := fmt.Sprintf("%s %s %s <- %%s\n", formatAddr, formatNoAddr, formatNoSize)
+	formatMem := fmt.Sprintf("%s-%s %s %%s%%s%%s%%s\n", formatAddr, formatAddr, formatSize)
+	formatUnused := fmt.Sprintf("%s-%s %s %%sUNUSED\n", formatAddr, formatAddr, formatSize)
 
-	flushLinks := func(upTo, lastAddress uintptr) {
+	flushLinks := func(upTo, lastAddress uintptr, depth int) {
+		// TODO: show unused when a parent is a certain size but it's not fully mapped
+		// TODO: better handle links in the middle of unused
+
 		if lastAddress != 0 && lastAddress < upTo {
-			builder.Writef(formatUnused, lastAddress, upTo, humanize.Bytes(uint64(upTo-lastAddress)))
+			builder.Writef(formatUnused, lastAddress, upTo, humanize.Bytes(uint64(upTo-lastAddress)), indent(depth, indentStr))
 		}
 
 		for linksIndex < len(linksOrder) && upTo > linksOrder[linksIndex] {
@@ -66,7 +71,7 @@ func (me *outputter) Text(m contracts.MemoryBlock) error {
 
 	lastAddress := uintptr(0)
 	err := commons.VisitEachBlock(&m, func(depth int, block *contracts.MemoryBlock) error {
-		flushLinks(block.Address, lastAddress)
+		flushLinks(block.Address, lastAddress, depth)
 
 		linksSuffixes := []string{}
 		for linksIndex < len(linksOrder) && uintptr(block.Address) == linksOrder[linksIndex] {
@@ -90,7 +95,7 @@ func (me *outputter) Text(m contracts.MemoryBlock) error {
 			details = fmt.Sprintf(" {%s}", strings.Join(detailsList, ","))
 		}
 		size := block.GetSize()
-		builder.Writef(formatMem, block.Address, block.Address+uintptr(size), humanize.Bytes(size), indent(depth, "  "), block.Name, details, linksSuffix)
+		builder.Writef(formatMem, block.Address, block.Address+uintptr(size), humanize.Bytes(size), indent(depth, indentStr), block.Name, details, linksSuffix)
 
 		lastAddress = block.Address + uintptr(size)
 		return nil
@@ -99,7 +104,7 @@ func (me *outputter) Text(m contracts.MemoryBlock) error {
 		return err
 	}
 
-	flushLinks(math.MaxUint64, 0)
+	flushLinks(math.MaxUint64, 0, 0)
 
 	return builder.Close()
 }

@@ -40,7 +40,24 @@ func Parse(fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, error) {
 		}
 	}
 
-	// TODO: need to "rebalance" children
+	commons.VisitEachBlock(root, func(depth int, block *contracts.MemoryBlock) error {
+		for i := 0; i < len(block.Content); i += 1 {
+			child := block.Content[i]
+			if i >= len(block.Content)-1 {
+				break
+			}
+			previousChild := block.Content[i+1]
+			for i := 0; i < len(child.Content); {
+				gchild := child.Content[i]
+				if gchild.Address+uintptr(gchild.GetSize()) > previousChild.Address {
+					moveChild(child, block, i)
+					continue
+				}
+				i += 1
+			}
+		}
+		return nil
+	})
 
 	return root, nil
 }

@@ -29,6 +29,13 @@ func addChild(parent, child *contracts.MemoryBlock) {
 	parent.Content = append(parent.Content, child)
 }
 
+func moveChild(parent, newParent *contracts.MemoryBlock, childIndex int) {
+	child := parent.Content[childIndex]
+	parent.Content = slices.Delete(parent.Content, childIndex, childIndex+1)
+	child.ParentOffset = uint64(child.Address - newParent.Address)
+	addChild(newParent, child)
+}
+
 func addLink(parent *contracts.MemoryBlock, parentValueName string, child *contracts.MemoryBlock, linkName string) error {
 	for i := range parent.Values {
 		if parent.Values[i].Name != parentValueName {
