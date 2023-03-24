@@ -50,15 +50,14 @@ func (me *outputter) Text(m contracts.MemoryBlock) error {
 	formatUnused := fmt.Sprintf("%s-%s %s %%sUNUSED\n", formatAddr, formatAddr, formatSize)
 
 	flushLinks := func(upTo, lastAddress uintptr, depth int) {
-		// TODO: show unused when a parent is a certain size but it's not fully mapped
-		// TODO: better handle links in the middle of unused
-
-		if lastAddress != 0 && lastAddress < upTo {
-			builder.Writef(formatUnused, lastAddress, upTo, humanize.Bytes(uint64(upTo-lastAddress)), indent(depth, indentStr))
-		}
-
+		lastUnused := lastAddress
 		for linksIndex < len(linksOrder) && upTo > linksOrder[linksIndex] {
 			addr := linksOrder[linksIndex]
+
+			if lastUnused != 0 && lastUnused < addr {
+				builder.Writef(formatUnused, lastUnused, addr, humanize.Bytes(uint64(addr-lastUnused)), indent(depth, indentStr))
+			}
+
 			origins := links[linksOrder[linksIndex]]
 			originsText := make([]string, len(origins))
 			for i, origin := range origins {
@@ -66,11 +65,19 @@ func (me *outputter) Text(m contracts.MemoryBlock) error {
 			}
 			builder.Writef(formatLink, addr, "", "", strings.Join(originsText, ", "))
 			linksIndex += 1
+
+			lastUnused = addr
+		}
+
+		if lastUnused != 0 && lastUnused < upTo {
+			builder.Writef(formatUnused, lastUnused, upTo, humanize.Bytes(uint64(upTo-lastUnused)), indent(depth, indentStr))
 		}
 	}
 
 	lastAddress := uintptr(0)
 	err := commons.VisitEachBlock(&m, func(depth int, block *contracts.MemoryBlock) error {
+		// TODO: show unused when a parent is a certain size but it's not fully mapped
+
 		flushLinks(block.Address, lastAddress, depth)
 
 		linksSuffixes := []string{}
