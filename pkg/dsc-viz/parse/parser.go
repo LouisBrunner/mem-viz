@@ -39,5 +39,8 @@ func Parse(fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, error) {
 			return nil, err
 		}
 	}
+
+	// TODO: need to "rebalance" children
+
 	return root, nil
 }

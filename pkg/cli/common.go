@@ -3,12 +3,17 @@ package cli
 import (
 	"fmt"
 	"os"
+	"regexp"
+	"runtime"
 
 	"github.com/LouisBrunner/mem-viz/pkg/commons"
 	"github.com/LouisBrunner/mem-viz/pkg/contracts"
 	"github.com/LouisBrunner/mem-viz/pkg/viz"
 	"github.com/sirupsen/logrus"
 )
+
+var funcMatcher = regexp.MustCompile(`^.*/([^/]*)$`)
+var filenameMatcher = regexp.MustCompile(`^.*/?((cmd|pkg)/.+)$`)
 
 func getLogger(params Args) *logrus.Logger {
 	logger := logrus.New()
@@ -17,6 +22,21 @@ func getLogger(params Args) *logrus.Logger {
 	if os.Getenv("DEBUG") != "" {
 		logger.SetLevel(logrus.DebugLevel)
 		logger.SetReportCaller(true)
+	}
+	logger.Formatter = &logrus.TextFormatter{
+		CallerPrettyfier: func(f *runtime.Frame) (string, string) {
+			cleanFunc := f.Function
+			matches := funcMatcher.FindStringSubmatch(f.Function)
+			if len(matches) > 1 {
+				cleanFunc = matches[1]
+			}
+			matches = filenameMatcher.FindStringSubmatch(f.File)
+			cleanFile := f.File
+			if len(matches) > 1 {
+				cleanFile = matches[1]
+			}
+			return fmt.Sprintf("{%s}", cleanFunc), fmt.Sprintf(" %s:%d", cleanFile, f.Line)
+		},
 	}
 	return logger
 }
