@@ -41,9 +41,11 @@ func work[T any](worker Worker[T], userParams T) error {
 	if err != nil {
 		return err
 	}
+	mbInternal := false
 
 	// If we loaded the MemoryBlocks directly from JSON, then no need to parse anything
 	if mb == nil {
+		mbInternal = true
 		mb, err = worker.GetMemory(logger, userParams)
 		if err != nil {
 			return err
@@ -54,6 +56,11 @@ func work[T any](worker Worker[T], userParams T) error {
 
 	err = checker.Check(logger, mb)
 	if err != nil {
+		if mbInternal {
+			message := "internal error, the front-end has generated an invalid memory map"
+			logger.WithError(err).Error(message)
+			return fmt.Errorf("%s (see log for details)", message)
+		}
 		return err
 	}
 

@@ -49,7 +49,7 @@ var OutputFormatsHelp = strings.Join(commons.MapSlice(outputFormats, strconv.Quo
 func GetDefaultArgs() Args {
 	return Args{
 		OutputFormat: OutputFormatText,
-		LoggingLevel: logrus.ErrorLevel,
+		LoggingLevel: logrus.FatalLevel,
 	}
 }
 
