@@ -231,7 +231,3 @@ TODO: unimplemented, see memory-maps in https://texdoc.org/serve/bytefield.pdf/0
 When using `mem-viz` directly, outputting `json` will just act as a noop: whatever you passed in will be echoed back. Do note that it will parse your input and check it, removing any unknown field. This is a good way to check if JSON format is valid though.
 
 When using another front-end, it will output the JSON representation of the memory map, which can be saved then loaded later with one of the `--from-json*` flags.
-
-```
-
-```
