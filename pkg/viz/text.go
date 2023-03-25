@@ -49,14 +49,27 @@ func (me *outputter) Text(m contracts.MemoryBlock) error {
 	formatMem := fmt.Sprintf("%s-%s %s %%s%%s%%s%%s\n", formatAddr, formatAddr, formatSize)
 	formatUnused := fmt.Sprintf("%s-%s %s %%sUNUSED\n", formatAddr, formatAddr, formatSize)
 
+	parentsEnd := map[int]uintptr{}
+
+	flushUnused := func(from, to uintptr, depth int) {
+		if from == 0 || from >= to {
+			return
+		}
+
+		scopeEnd := parentsEnd[depth]
+		if from < scopeEnd && scopeEnd < to {
+			builder.Writef(formatUnused, from, scopeEnd, humanize.Bytes(uint64(scopeEnd-from)), indent(depth+1, indentStr))
+			from = scopeEnd
+		}
+		builder.Writef(formatUnused, from, to, humanize.Bytes(uint64(to-from)), indent(depth, indentStr))
+	}
+
 	flushLinks := func(upTo, lastAddress uintptr, depth int) {
 		lastUnused := lastAddress
 		for linksIndex < len(linksOrder) && upTo > linksOrder[linksIndex] {
 			addr := linksOrder[linksIndex]
 
-			if lastUnused != 0 && lastUnused < addr {
-				builder.Writef(formatUnused, lastUnused, addr, humanize.Bytes(uint64(addr-lastUnused)), indent(depth, indentStr))
-			}
+			flushUnused(lastUnused, addr, depth)
 
 			origins := links[linksOrder[linksIndex]]
 			originsText := make([]string, len(origins))
@@ -69,15 +82,11 @@ func (me *outputter) Text(m contracts.MemoryBlock) error {
 			lastUnused = addr
 		}
 
-		if lastUnused != 0 && lastUnused < upTo {
-			builder.Writef(formatUnused, lastUnused, upTo, humanize.Bytes(uint64(upTo-lastUnused)), indent(depth, indentStr))
-		}
+		flushUnused(lastUnused, upTo, depth)
 	}
 
 	lastAddress := uintptr(0)
 	err := commons.VisitEachBlock(&m, func(depth int, block *contracts.MemoryBlock) error {
-		// TODO: show unused when a parent is a certain size but it's not fully mapped
-
 		flushLinks(block.Address, lastAddress, depth)
 
 		linksSuffixes := []string{}
@@ -105,6 +114,7 @@ func (me *outputter) Text(m contracts.MemoryBlock) error {
 		builder.Writef(formatMem, block.Address, block.Address+uintptr(size), humanize.Bytes(size), indent(depth, indentStr), block.Name, details, linksSuffix)
 
 		lastAddress = block.Address + uintptr(size)
+		parentsEnd[depth] = lastAddress
 		return nil
 	})
 	if err != nil {
