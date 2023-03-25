@@ -46,14 +46,14 @@ func addCache(parent *contracts.MemoryBlock, cache subcontracts.Cache, label str
 		return nil, nil, err
 	}
 	if okV1 {
-		// TODO: should use DYLDCacheSlideInfo1,2,3
+		// FIXME: should use DYLDCacheSlideInfo1,2,3 but don't have a V1 cache
 		// https://github.com/apple-oss-distributions/dyld/blob/c8a445f88f9fc1713db34674e79b00e30723e79d/dyld/SharedCacheRuntime.cpp#L654
 		_, err = createBlobBlock(block, headerBlock, "SlideInfoOffset", uint64(v1.SlideInfoOffset), "SlideInfoSize", uint64(v1.SlideInfoSize), "Slide Info")
 		if err != nil {
 			return nil, nil, err
 		}
 	}
-	// TODO: should use DYLDCacheLocalSymbolsInfo
+	// FIXME: should use DYLDCacheLocalSymbolsInfo but my cache doesn't have them
 	// https://github.com/apple-oss-distributions/dyld/blob/c8a445f88f9fc1713db34674e79b00e30723e79d/cache-builder/OptimizerLinkedit.cpp#L137
 	_, err = createBlobBlock(block, headerBlock, "LocalSymbolsOffset", header.LocalSymbolsOffset, "LocalSymbolsSize", header.LocalSymbolsSize, "Local Symbols")
 	if err != nil {
@@ -71,11 +71,11 @@ func addCache(parent *contracts.MemoryBlock, cache subcontracts.Cache, label str
 			return nil, nil, err
 		}
 	} else {
-		err = addLink(headerBlock, "DyldInCacheMh", &contracts.MemoryBlock{Address: block.Address + uintptr(header.DyldInCacheMh)}, "points to")
+		err = addLinkWithOffset(headerBlock, "DyldInCacheMh", header.DyldInCacheMh, "points to")
 		if err != nil {
 			return nil, nil, err
 		}
-		err = addLink(headerBlock, "DyldInCacheEntry", &contracts.MemoryBlock{Address: block.Address + uintptr(header.DyldInCacheEntry)}, "points to")
+		err = addLinkWithOffset(headerBlock, "DyldInCacheEntry", header.DyldInCacheEntry, "points to")
 		if err != nil {
 			return nil, nil, err
 		}
@@ -134,7 +134,7 @@ func addCache(parent *contracts.MemoryBlock, cache subcontracts.Cache, label str
 		return nil, nil, err
 	}
 	// TODO: dig deeper in each mapping with slide
-	err = addLink(headerBlock, "DylibsPblSetAddr", &contracts.MemoryBlock{Address: block.Address + uintptr(header.DylibsPblSetAddr)}, "points to")
+	err = addLinkWithOffset(headerBlock, "DylibsPblSetAddr", header.DylibsPblSetAddr, "points to")
 	if err != nil {
 		return nil, nil, err
 	}

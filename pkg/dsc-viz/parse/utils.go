@@ -101,6 +101,26 @@ func addLink(parent *contracts.MemoryBlock, parentValueName string, child *contr
 	return fmt.Errorf("could not find value %q in parent %+v", parentValueName, parent)
 }
 
+func addLinkWithOffset[A addressOrOffset](parent *contracts.MemoryBlock, parentValueName string, offset A, linkName string) error {
+	if offset == 0 {
+		return nil
+	}
+
+	for i := range parent.Values {
+		if parent.Values[i].Name != parentValueName {
+			continue
+		}
+
+		parent.Values[i].Links = append(parent.Values[i].Links, &contracts.MemoryLink{
+			Name:          linkName,
+			TargetAddress: uint64(calculateAddress(parent.Address, offset)),
+		})
+		return nil
+	}
+
+	return fmt.Errorf("could not find value %q in parent %+v", parentValueName, parent)
+}
+
 func formatValue(name string, value interface{}) string {
 	formatInteger := func() string {
 		// FIXME: would be nice to have more specialized formats, e.g. for OSVersion or CacheType
