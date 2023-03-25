@@ -2,21 +2,55 @@ package parse
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/LouisBrunner/mem-viz/pkg/commons"
 	"github.com/LouisBrunner/mem-viz/pkg/contracts"
+	subcontracts "github.com/LouisBrunner/mem-viz/pkg/dsc-viz/contracts"
 	"golang.org/x/exp/slices"
 )
 
-func createCommonBlock(parent *contracts.MemoryBlock, label string, offset, size uint64) *contracts.MemoryBlock {
+func isUnslidAddress[A addressOrOffset](special A) bool {
+	_, ok := interface{}(special).(subcontracts.UnslidAddress)
+	return ok
+}
+
+func calculateAddress[A addressOrOffset](base uintptr, special A) uintptr {
+	address := base + uintptr(special)
+	if isUnslidAddress(special) {
+		address = uintptr(special)
+	}
+	return address
+}
+
+func addParentOffset[A addressOrOffset](special A, parent uint64) A {
+	if isUnslidAddress(special) {
+		return special
+	}
+	return A(uint64(special) + parent)
+}
+
+func getReaderAtOffset[A addressOrOffset](cache subcontracts.Cache, special A, offset uint64) io.Reader {
+	addr := uint64(special) + offset
+	if isUnslidAddress(special) {
+		return cache.ReaderAbsolute(addr)
+	}
+	return cache.ReaderAtOffset(int64(addr))
+}
+
+func createCommonBlock[A addressOrOffset](parent *contracts.MemoryBlock, label string, offset A, size uint64) (*contracts.MemoryBlock, error) {
+	address := calculateAddress(parent.Address, offset)
+	if address < parent.Address {
+		return nil, fmt.Errorf("address of %q (%#16x) is before parent %q (%#16x)", label, address, parent.Name, parent.Address)
+	}
 	block := &contracts.MemoryBlock{
 		Name:         label,
-		Address:      parent.Address + uintptr(offset),
+		Address:      address,
 		Size:         size,
-		ParentOffset: offset,
+		ParentOffset: uint64(address - parent.Address),
 	}
 	addChild(parent, block)
-	return block
+	return block, nil
 }
 
 func addChild(parent, child *contracts.MemoryBlock) {
@@ -29,9 +63,24 @@ func addChild(parent, child *contracts.MemoryBlock) {
 	parent.Content = append(parent.Content, child)
 }
 
-func moveChild(parent, newParent *contracts.MemoryBlock, childIndex int) {
+func findAndRemoveChild(parent, child *contracts.MemoryBlock) error {
+	for i, curr := range parent.Content {
+		if curr == child {
+			removeChild(parent, i)
+			return nil
+		}
+	}
+	return fmt.Errorf("could not find child %+v in parent %+v", child, parent)
+}
+
+func removeChild(parent *contracts.MemoryBlock, childIndex int) *contracts.MemoryBlock {
 	child := parent.Content[childIndex]
 	parent.Content = slices.Delete(parent.Content, childIndex, childIndex+1)
+	return child
+}
+
+func moveChild(parent, newParent *contracts.MemoryBlock, childIndex int) {
+	child := removeChild(parent, childIndex)
 	child.ParentOffset = uint64(child.Address - newParent.Address)
 	addChild(newParent, child)
 }
@@ -59,6 +108,8 @@ func formatValue(name string, value interface{}) string {
 	}
 
 	switch v := value.(type) {
+	case subcontracts.UnslidAddress:
+		return formatInteger()
 	case uint:
 		return formatInteger()
 	case uint8:

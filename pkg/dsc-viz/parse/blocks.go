@@ -7,16 +7,19 @@ import (
 	"github.com/LouisBrunner/mem-viz/pkg/contracts"
 )
 
-func createStructBlock[T any](parent *contracts.MemoryBlock, data T, label string, offset uint64) *contracts.MemoryBlock {
+func createStructBlock[T any, A addressOrOffset](parent *contracts.MemoryBlock, data T, label string, offset A) (*contracts.MemoryBlock, error) {
 	empty := interface{}(data) == nil
 	size := uint64(0)
 	if !empty {
 		size = uint64(unsafe.Sizeof(data))
 	}
-	block := createCommonBlock(parent, label, offset, size)
+	block, err := createCommonBlock(parent, label, offset, size)
+	if err != nil {
+		return nil, err
+	}
 
 	if empty {
-		return block
+		return block, nil
 	}
 
 	val := reflect.ValueOf(data)
@@ -35,16 +38,19 @@ func createStructBlock[T any](parent *contracts.MemoryBlock, data T, label strin
 		})
 	}
 
-	return block
+	return block, nil
 }
 
-func createBlobBlock(inside *contracts.MemoryBlock, from *contracts.MemoryBlock, fieldName string, offset uint64, fieldSizeName string, size uint64, label string) (*contracts.MemoryBlock, error) {
+func createBlobBlock[A addressOrOffset](inside *contracts.MemoryBlock, from *contracts.MemoryBlock, fieldName string, offset A, fieldSizeName string, size uint64, label string) (*contracts.MemoryBlock, error) {
 	if offset == 0 || size == 0 {
 		return nil, nil
 	}
 
-	block := createCommonBlock(inside, label, offset, size)
-	err := addLink(from, fieldName, block, "points to")
+	block, err := createCommonBlock(inside, label, offset, size)
+	if err != nil {
+		return nil, err
+	}
+	err = addLink(from, fieldName, block, "points to")
 	if err != nil {
 		return nil, err
 	}
@@ -55,6 +61,6 @@ func createBlobBlock(inside *contracts.MemoryBlock, from *contracts.MemoryBlock,
 	return block, nil
 }
 
-func createEmptyBlock(parent *contracts.MemoryBlock, label string, offset uint64) *contracts.MemoryBlock {
+func createEmptyBlock[A addressOrOffset](parent *contracts.MemoryBlock, label string, offset A) (*contracts.MemoryBlock, error) {
 	return createCommonBlock(parent, label, offset, 0)
 }

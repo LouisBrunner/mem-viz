@@ -9,20 +9,27 @@ import (
 )
 
 func addCache(parent *contracts.MemoryBlock, cache subcontracts.Cache, label string, offset uint64) (*contracts.MemoryBlock, *contracts.MemoryBlock, error) {
-	block := createEmptyBlock(parent, fmt.Sprintf("%s Area", label), offset)
+	block, err := createEmptyBlock(parent, fmt.Sprintf("%s Area", label), offset)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	header := cache.Header()
 	v1, okV1 := header.V1()
 	v2, okV2 := header.V2()
 	var headerBlock *contracts.MemoryBlock
 	if okV1 {
-		headerBlock = createStructBlock(block, v1, fmt.Sprintf("%s (V1)", label), 0)
+		headerBlock, err = createStructBlock(block, v1, fmt.Sprintf("%s (V1)", label), uint64(0))
 	} else if okV2 {
-		headerBlock = createStructBlock(block, v2, fmt.Sprintf("%s (V2)", label), 0)
+		headerBlock, err = createStructBlock(block, v2, fmt.Sprintf("%s (V2)", label), uint64(0))
 	} else {
-		headerBlock = createStructBlock(block, header, fmt.Sprintf("%s (V3)", label), 0)
+		headerBlock, err = createStructBlock(block, header, fmt.Sprintf("%s (V3)", label), uint64(0))
 	}
-	_, err := parseAndAddMultipleStructs(cache, block, headerBlock, "MappingOffset", uint64(header.MappingOffset), "MappingCount", uint64(header.MappingCount), subcontracts.DYLDCacheMappingInfo{}, "Mappings")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	_, err = parseAndAddMultipleStructs(cache, block, headerBlock, "MappingOffset", uint64(header.MappingOffset), "MappingCount", uint64(header.MappingCount), subcontracts.DYLDCacheMappingInfo{}, "Mappings")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -34,29 +41,31 @@ func addCache(parent *contracts.MemoryBlock, cache subcontracts.Cache, label str
 		}
 		// TODO: dig deeper in each image
 	}
-	_, err = createBlobBlock(block, headerBlock, "CodeSignatureOffset", uint64(header.CodeSignatureOffset), "CodeSignatureSize", uint64(header.CodeSignatureSize), "Code Signature")
+	_, err = createBlobBlock(block, headerBlock, "CodeSignatureOffset", header.CodeSignatureOffset, "CodeSignatureSize", header.CodeSignatureSize, "Code Signature")
 	if err != nil {
 		return nil, nil, err
 	}
 	if okV1 {
-		// FIXME: should it use DYLDCacheSlideInfo and related?
+		// TODO: should use DYLDCacheSlideInfo1,2,3
+		// https://github.com/apple-oss-distributions/dyld/blob/c8a445f88f9fc1713db34674e79b00e30723e79d/dyld/SharedCacheRuntime.cpp#L654
 		_, err = createBlobBlock(block, headerBlock, "SlideInfoOffset", uint64(v1.SlideInfoOffset), "SlideInfoSize", uint64(v1.SlideInfoSize), "Slide Info")
 		if err != nil {
 			return nil, nil, err
 		}
 	}
-	// FIXME: should it use DYLDCacheLocalSymbolsInfo and related?
-	_, err = createBlobBlock(block, headerBlock, "LocalSymbolsOffset", uint64(header.LocalSymbolsOffset), "LocalSymbolsSize", uint64(header.LocalSymbolsSize), "Local Symbols")
+	// TODO: should use DYLDCacheLocalSymbolsInfo
+	// https://github.com/apple-oss-distributions/dyld/blob/c8a445f88f9fc1713db34674e79b00e30723e79d/cache-builder/OptimizerLinkedit.cpp#L137
+	_, err = createBlobBlock(block, headerBlock, "LocalSymbolsOffset", header.LocalSymbolsOffset, "LocalSymbolsSize", header.LocalSymbolsSize, "Local Symbols")
 	if err != nil {
 		return nil, nil, err
 	}
-	// FIXME: is it worth unpacking each uint64 and list them?
+	// FIXME: is it worth unpacking each uint64 and list them? probably too noisy
 	_, err = createBlobBlock(block, headerBlock, "BranchPoolsOffset", uint64(header.BranchPoolsOffset), "BranchPoolsCount", uint64(header.BranchPoolsCount), "Branch Pools")
 	if err != nil {
 		return nil, nil, err
 	}
 	if okV1 {
-		// FIXME: should it use DYLDCacheAcceleratorInfo and related?
+		// FIXME: should it use DYLDCacheAcceleratorInfo? can't find reference to it in DYLD and don't have a V1 cache
 		_, err = createBlobBlock(block, headerBlock, "AccelerateInfoAddr", uint64(v1.AccelerateInfoAddr), "AccelerateInfoSize", uint64(v1.AccelerateInfoSize), "Accelerate Info")
 		if err != nil {
 			return nil, nil, err
@@ -71,13 +80,13 @@ func addCache(parent *contracts.MemoryBlock, cache subcontracts.Cache, label str
 			return nil, nil, err
 		}
 	}
-	_, err = parseAndAddMultipleStructs(cache, block, headerBlock, "ImagesTextOffset", uint64(header.ImagesTextOffset), "ImagesTextCount", uint64(header.ImagesTextCount), subcontracts.DYLDCacheImageTextInfo{}, "Images Text")
+	_, err = parseAndAddMultipleStructs(cache, block, headerBlock, "ImagesTextOffset", header.ImagesTextOffset, "ImagesTextCount", header.ImagesTextCount, subcontracts.DYLDCacheImageTextInfo{}, "Images Text")
 	if err != nil {
 		return nil, nil, err
 	}
 	// TODO: dig deeper in each image text
 	if okV1 {
-		// FIXME: should it use a struct?
+		// FIXME: should it use a struct? can't find reference to it in DYLD and don't have a V1 cache
 		_, err = createBlobBlock(block, headerBlock, "DylibsImageGroupAddr", uint64(v1.DylibsImageGroupAddr), "DylibsImageGroupSize", uint64(v1.DylibsImageGroupSize), "Dylibs ImageGroups")
 		if err != nil {
 			return nil, nil, err
@@ -87,33 +96,33 @@ func addCache(parent *contracts.MemoryBlock, cache subcontracts.Cache, label str
 			return nil, nil, err
 		}
 	} else {
-		_, err = createBlobBlock(block, headerBlock, "PatchInfoAddr", uint64(header.PatchInfoAddr), "PatchInfoSize", uint64(header.PatchInfoSize), "Patch Info")
+		_, _, _, err = parseAndAddBlob(cache, block, headerBlock, "PatchInfoAddr", header.PatchInfoAddr, "PatchInfoSize", header.PatchInfoSize, subcontracts.DYLDCachePatchInfo{}, "Patch Info")
 		if err != nil {
 			return nil, nil, err
 		}
 		// TODO: add dyld_cache_patch_info and related
 	}
-	_, err = createBlobBlock(block, headerBlock, "ProgClosuresAddr", uint64(header.ProgClosuresAddr), "ProgClosuresSize", uint64(header.ProgClosuresSize), "Program Closures")
+	_, err = createBlobBlock(block, headerBlock, "ProgClosuresAddr", header.ProgClosuresAddr, "ProgClosuresSize", header.ProgClosuresSize, "Program Closures")
 	if err != nil {
 		return nil, nil, err
 	}
-	_, err = createBlobBlock(block, headerBlock, "ProgClosuresTrieAddr", uint64(header.ProgClosuresTrieAddr), "ProgClosuresTrieSize", uint64(header.ProgClosuresTrieSize), "Program Closures (Trie)")
+	_, err = createBlobBlock(block, headerBlock, "ProgClosuresTrieAddr", header.ProgClosuresTrieAddr, "ProgClosuresTrieSize", header.ProgClosuresTrieSize, "Program Closures (Trie)")
 	if err != nil {
 		return nil, nil, err
 	}
-	_, err = createBlobBlock(block, headerBlock, "DylibsImageArrayAddr", uint64(header.DylibsImageArrayAddr), "DylibsImageArraySize", uint64(header.DylibsImageArraySize), "Dylibs ImageArrays")
+	_, err = createBlobBlock(block, headerBlock, "DylibsImageArrayAddr", header.DylibsImageArrayAddr, "DylibsImageArraySize", header.DylibsImageArraySize, "Dylibs ImageArrays")
 	if err != nil {
 		return nil, nil, err
 	}
-	_, err = createBlobBlock(block, headerBlock, "DylibsTrieAddr", uint64(header.DylibsTrieAddr), "DylibsTrieSize", uint64(header.DylibsTrieSize), "Dylibs ImageArrays (Trie)")
+	_, err = createBlobBlock(block, headerBlock, "DylibsTrieAddr", header.DylibsTrieAddr, "DylibsTrieSize", header.DylibsTrieSize, "Dylibs ImageArrays (Trie)")
 	if err != nil {
 		return nil, nil, err
 	}
-	_, err = createBlobBlock(block, headerBlock, "OtherImageArrayAddr", uint64(header.OtherImageArrayAddr), "OtherImageArraySize", uint64(header.OtherImageArraySize), "Other ImageArrays")
+	_, err = createBlobBlock(block, headerBlock, "OtherImageArrayAddr", header.OtherImageArrayAddr, "OtherImageArraySize", header.OtherImageArraySize, "Other ImageArrays")
 	if err != nil {
 		return nil, nil, err
 	}
-	_, err = createBlobBlock(block, headerBlock, "OtherTrieAddr", uint64(header.OtherTrieAddr), "OtherTrieSize", uint64(header.OtherTrieSize), "Other ImageArrays (Trie)")
+	_, err = createBlobBlock(block, headerBlock, "OtherTrieAddr", header.OtherTrieAddr, "OtherTrieSize", header.OtherTrieSize, "Other ImageArrays (Trie)")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -129,23 +138,23 @@ func addCache(parent *contracts.MemoryBlock, cache subcontracts.Cache, label str
 	if err != nil {
 		return nil, nil, err
 	}
-	_, err = createBlobBlock(block, headerBlock, "ProgramsPblSetPoolAddr", uint64(header.ProgramsPblSetPoolAddr), "ProgramsPblSetPoolSize", uint64(header.ProgramsPblSetPoolSize), "PrebuiltLoaderSet for each program")
+	_, err = createBlobBlock(block, headerBlock, "ProgramsPblSetPoolAddr", header.ProgramsPblSetPoolAddr, "ProgramsPblSetPoolSize", header.ProgramsPblSetPoolSize, "PrebuiltLoaderSet for each program")
 	if err != nil {
 		return nil, nil, err
 	}
-	_, err = createBlobBlock(block, headerBlock, "ProgramTrieAddr", uint64(header.ProgramTrieAddr), "ProgramTrieSize", uint64(header.ProgramTrieSize), "PrebuiltLoaderSet for each program (Trie)")
+	_, err = createBlobBlock(block, headerBlock, "ProgramTrieAddr", header.ProgramTrieAddr, "ProgramTrieSize", uint64(header.ProgramTrieSize), "PrebuiltLoaderSet for each program (Trie)")
 	if err != nil {
 		return nil, nil, err
 	}
-	_, err = createBlobBlock(block, headerBlock, "SwiftOptsOffset", uint64(header.SwiftOptsOffset), "SwiftOptsSize", uint64(header.SwiftOptsSize), "Swift Optimizations Header")
+	_, err = createBlobBlock(block, headerBlock, "SwiftOptsOffset", header.SwiftOptsOffset, "SwiftOptsSize", header.SwiftOptsSize, "Swift Optimizations Header")
 	if err != nil {
 		return nil, nil, err
 	}
-	_, err = createBlobBlock(block, headerBlock, "RosettaReadOnlyAddr", uint64(header.RosettaReadOnlyAddr), "RosettaReadOnlySize", uint64(header.RosettaReadOnlySize), "Rosetta Read-Only Region")
+	_, err = createBlobBlock(block, headerBlock, "RosettaReadOnlyAddr", header.RosettaReadOnlyAddr, "RosettaReadOnlySize", header.RosettaReadOnlySize, "Rosetta Read-Only Region")
 	if err != nil {
 		return nil, nil, err
 	}
-	_, err = createBlobBlock(block, headerBlock, "RosettaReadWriteAddr", uint64(header.RosettaReadWriteAddr), "RosettaReadWriteSize", uint64(header.RosettaReadWriteSize), "Rosetta Read-Write Region")
+	_, err = createBlobBlock(block, headerBlock, "RosettaReadWriteAddr", header.RosettaReadWriteAddr, "RosettaReadWriteSize", header.RosettaReadWriteSize, "Rosetta Read-Write Region")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -157,35 +166,40 @@ func addCache(parent *contracts.MemoryBlock, cache subcontracts.Cache, label str
 	if okV2 {
 		return block, headerBlock, nil
 	}
-	_, err = createBlobBlock(block, headerBlock, "ObjcOptsOffset", uint64(header.ObjcOptsOffset), "ObjcOptsSize", uint64(header.ObjcOptsSize), "Objective-C Optimizations Header")
+	_, err = createBlobBlock(block, headerBlock, "ObjcOptsOffset", header.ObjcOptsOffset, "ObjcOptsSize", header.ObjcOptsSize, "Objective-C Optimizations Header")
 	if err != nil {
 		return nil, nil, err
 	}
-	_, err = createBlobBlock(block, headerBlock, "CacheAtlasOffset", uint64(header.CacheAtlasOffset), "CacheAtlasSize", uint64(header.CacheAtlasSize), "Cache Atlas")
+	_, err = createBlobBlock(block, headerBlock, "CacheAtlasOffset", header.CacheAtlasOffset, "CacheAtlasSize", header.CacheAtlasSize, "Cache Atlas")
 	if err != nil {
 		return nil, nil, err
 	}
-	_, err = createBlobBlock(block, headerBlock, "DynamicDataOffset", uint64(header.DynamicDataOffset), "DynamicDataMaxSize", uint64(header.DynamicDataMaxSize), "DYLD Cache Dynamic Data")
+	blob, subHeaderBlock, subHeader, err := parseAndAddBlob(cache, block, headerBlock, "DynamicDataOffset", header.DynamicDataOffset, "DynamicDataMaxSize", header.DynamicDataMaxSize, subcontracts.DYLDCacheDynamicDataHeader{}, "DYLD Cache Dynamic Data")
 	if err != nil {
 		return nil, nil, err
 	}
-	// FIXME: somehow we can't read this :(
-	// _, err = parseAndAddStruct(cache, dcdd, headerBlock, "DynamicDataHeader", uint64(header.DynamicDataOffset), subcontracts.DYLDCacheDynamicDataHeader{}, "DYLD Cache Dynamic Data Header")
-	// if err != nil {
-	// 	return nil, nil, err
-	// }
+	if subHeaderBlock != nil && string(subHeader.Magic[:]) != subcontracts.DYLD_SHARED_CACHE_DYNAMIC_DATA_MAGIC {
+		err = findAndRemoveChild(blob, subHeaderBlock)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
 	return block, headerBlock, nil
 }
 
 func addSubCacheEntry(parent, headerBlock, subCache *contracts.MemoryBlock, header subcontracts.DYLDCacheHeaderV3, v2 *subcontracts.DYLDSubcacheEntryV2, v1 *subcontracts.DYLDSubcacheEntryV1, index uint64) error {
 	var block *contracts.MemoryBlock
+	var err error
 	label := "Subcache Entry"
 	if v2 != nil {
-		block = createStructBlock(parent, *v2, fmt.Sprintf("%s (V2)", label), index*uint64(unsafe.Sizeof(*v2)))
+		block, err = createStructBlock(parent, *v2, fmt.Sprintf("%s (V2)", label), index*uint64(unsafe.Sizeof(*v2)))
 	} else if v1 != nil {
-		block = createStructBlock(parent, *v1, fmt.Sprintf("%s (V1)", label), index*uint64(unsafe.Sizeof(*v1)))
+		block, err = createStructBlock(parent, *v1, fmt.Sprintf("%s (V1)", label), index*uint64(unsafe.Sizeof(*v1)))
 	} else {
 		return fmt.Errorf("unknown subcache structure")
+	}
+	if err != nil {
+		return err
 	}
 	if index == 0 {
 		err := addLink(headerBlock, "SubCacheArrayOffset", block, "points to")

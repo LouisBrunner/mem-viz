@@ -18,6 +18,8 @@ const (
 	MAGIC_arm64_32       = "dyld_v1arm64_32"
 )
 
+type UnslidAddress uint64
+
 // From Apple's `dyld-*/cache-builder/dyld_cache_format.h`
 
 type DYLDCacheMappingInfo struct {
@@ -307,30 +309,30 @@ type DYLDCacheHeaderV1 struct {
 	CacheType            uint64                    `struc:"little"` // 0 for development, 1 for production
 	BranchPoolsOffset    uint32                    `struc:"little"` // file offset to table of uint64_t pool addresses
 	BranchPoolsCount     uint32                    `struc:"little"` // number of uint64_t entries
-	AccelerateInfoAddr   uint64                    `struc:"little"` // (unslid) address of optimization info
+	AccelerateInfoAddr   UnslidAddress             `struc:"little"` // (unslid) address of optimization info
 	AccelerateInfoSize   uint64                    `struc:"little"` // size of optimization info
 	ImagesTextOffset     uint64                    `struc:"little"` // file offset to first dyld_cache_image_text_info
 	ImagesTextCount      uint64                    `struc:"little"` // number of dyld_cache_image_text_info entries
-	DylibsImageGroupAddr uint64                    `struc:"little"` // (unslid) address of ImageGroup for dylibs in this cache
+	DylibsImageGroupAddr UnslidAddress             `struc:"little"` // (unslid) address of ImageGroup for dylibs in this cache
 	DylibsImageGroupSize uint64                    `struc:"little"` // size of ImageGroup for dylibs in this cache
-	OtherImageGroupAddr  uint64                    `struc:"little"` // (unslid) address of ImageGroup for other OS dylibs
+	OtherImageGroupAddr  UnslidAddress             `struc:"little"` // (unslid) address of ImageGroup for other OS dylibs
 	OtherImageGroupSize  uint64                    `struc:"little"` // size of oImageGroup for other OS dylibs
-	ProgClosuresAddr     uint64                    `struc:"little"` // (unslid) address of list of program launch closures
+	ProgClosuresAddr     UnslidAddress             `struc:"little"` // (unslid) address of list of program launch closures
 	ProgClosuresSize     uint64                    `struc:"little"` // size of list of program launch closures
-	ProgClosuresTrieAddr uint64                    `struc:"little"` // (unslid) address of trie of indexes into program launch closures
+	ProgClosuresTrieAddr UnslidAddress             `struc:"little"` // (unslid) address of trie of indexes into program launch closures
 	ProgClosuresTrieSize uint64                    `struc:"little"` // size of trie of indexes into program launch closures
 	Platform             uint32                    `struc:"little"` // platform number (macOS=1, etc)
 	BitField             DYLDCacheHeaderV1BitField `struc:"little"`
 	SharedRegionStart    uint64                    `struc:"little"` // base load address of cache if not slid
 	SharedRegionSize     uint64                    `struc:"little"` // overall size of region cache can be mapped into
 	MaxSlide             uint64                    `struc:"little"` // runtime slide of cache can be between zero and this value
-	DylibsImageArrayAddr uint64                    `struc:"little"` // (unslid) address of ImageArray for dylibs in this cache
+	DylibsImageArrayAddr UnslidAddress             `struc:"little"` // (unslid) address of ImageArray for dylibs in this cache
 	DylibsImageArraySize uint64                    `struc:"little"` // size of ImageArray for dylibs in this cache
-	DylibsTrieAddr       uint64                    `struc:"little"` // (unslid) address of trie of indexes of all cached dylibs
+	DylibsTrieAddr       UnslidAddress             `struc:"little"` // (unslid) address of trie of indexes of all cached dylibs
 	DylibsTrieSize       uint64                    `struc:"little"` // size of trie of cached dylib paths
-	OtherImageArrayAddr  uint64                    `struc:"little"` // (unslid) address of ImageArray for dylibs and bundles with dlopen closures
+	OtherImageArrayAddr  UnslidAddress             `struc:"little"` // (unslid) address of ImageArray for dylibs and bundles with dlopen closures
 	OtherImageArraySize  uint64                    `struc:"little"` // size of ImageArray for dylibs and bundles with dlopen closures
-	OtherTrieAddr        uint64                    `struc:"little"` // (unslid) address of trie of indexes of all dylibs and bundles with dlopen closures
+	OtherTrieAddr        UnslidAddress             `struc:"little"` // (unslid) address of trie of indexes of all dylibs and bundles with dlopen closures
 	OtherTrieSize        uint64                    `struc:"little"` // size of trie of dylibs and bundles with dlopen closures
 }
 
@@ -377,54 +379,54 @@ type DYLDCacheHeaderV2 struct {
 	CacheType                 uint64                    `struc:"little"` // 0 for development, 1 for production, 2 for multi-cache
 	BranchPoolsOffset         uint32                    `struc:"little"` // file offset to table of uint64_t pool addresses
 	BranchPoolsCount          uint32                    `struc:"little"` // number of uint64_t entries
-	DyldInCacheMh             uint64                    `struc:"little"` // (unslid) address of mach_header of dyld in cache
-	DyldInCacheEntry          uint64                    `struc:"little"` // (unslid) address of entry point (_dyld_start) of dyld in cache
+	DyldInCacheMh             UnslidAddress             `struc:"little"` // (unslid) address of mach_header of dyld in cache
+	DyldInCacheEntry          UnslidAddress             `struc:"little"` // (unslid) address of entry point (_dyld_start) of dyld in cache
 	ImagesTextOffset          uint64                    `struc:"little"` // file offset to first dyld_cache_image_text_info
 	ImagesTextCount           uint64                    `struc:"little"` // number of dyld_cache_image_text_info entries
-	PatchInfoAddr             uint64                    `struc:"little"` // (unslid) address of dyld_cache_patch_info
+	PatchInfoAddr             UnslidAddress             `struc:"little"` // (unslid) address of dyld_cache_patch_info
 	PatchInfoSize             uint64                    `struc:"little"` // Size of all of the patch information pointed to via the dyld_cache_patch_info
 	OtherImageGroupAddrUnused uint64                    `struc:"little"` // unused
 	OtherImageGroupSizeUnused uint64                    `struc:"little"` // unused
-	ProgClosuresAddr          uint64                    `struc:"little"` // (unslid) address of list of program launch closures
+	ProgClosuresAddr          UnslidAddress             `struc:"little"` // (unslid) address of list of program launch closures
 	ProgClosuresSize          uint64                    `struc:"little"` // size of list of program launch closures
-	ProgClosuresTrieAddr      uint64                    `struc:"little"` // (unslid) address of trie of indexes into program launch closures
+	ProgClosuresTrieAddr      UnslidAddress             `struc:"little"` // (unslid) address of trie of indexes into program launch closures
 	ProgClosuresTrieSize      uint64                    `struc:"little"` // size of trie of indexes into program launch closures
 	Platform                  uint32                    `struc:"little"` // platform number (macOS=1, etc)
 	BitField                  DYLDCacheHeaderV2BitField `struc:"little"`
 	SharedRegionStart         uint64                    `struc:"little"` // base load address of cache if not slid
 	SharedRegionSize          uint64                    `struc:"little"` // overall size required to map the cache and all subCaches, if any
 	MaxSlide                  uint64                    `struc:"little"` // runtime slide of cache can be between zero and this value
-	DylibsImageArrayAddr      uint64                    `struc:"little"` // (unslid) address of ImageArray for dylibs in this cache
+	DylibsImageArrayAddr      UnslidAddress             `struc:"little"` // (unslid) address of ImageArray for dylibs in this cache
 	DylibsImageArraySize      uint64                    `struc:"little"` // size of ImageArray for dylibs in this cache
-	DylibsTrieAddr            uint64                    `struc:"little"` // (unslid) address of trie of indexes of all cached dylibs
+	DylibsTrieAddr            UnslidAddress             `struc:"little"` // (unslid) address of trie of indexes of all cached dylibs
 	DylibsTrieSize            uint64                    `struc:"little"` // size of trie of cached dylib paths
-	OtherImageArrayAddr       uint64                    `struc:"little"` // (unslid) address of ImageArray for dylibs and bundles with dlopen closures
+	OtherImageArrayAddr       UnslidAddress             `struc:"little"` // (unslid) address of ImageArray for dylibs and bundles with dlopen closures
 	OtherImageArraySize       uint64                    `struc:"little"` // size of ImageArray for dylibs and bundles with dlopen closures
-	OtherTrieAddr             uint64                    `struc:"little"` // (unslid) address of trie of indexes of all dylibs and bundles with dlopen closures
+	OtherTrieAddr             UnslidAddress             `struc:"little"` // (unslid) address of trie of indexes of all dylibs and bundles with dlopen closures
 	OtherTrieSize             uint64                    `struc:"little"` // size of trie of dylibs and bundles with dlopen closures
 	// End of V1 (not using an embedded struct to avoid losing the name and to use the right bitfield)
-	MappingWithSlideOffset        uint32    `struc:"little"` // file offset to first dyld_cache_mapping_and_slide_info
-	MappingWithSlideCount         uint32    `struc:"little"` // number of dyld_cache_mapping_and_slide_info entries
-	DylibsPblStateArrayAddrUnused uint64    `struc:"little"` // unused
-	DylibsPblSetAddr              uint64    `struc:"little"` // (unslid) address of PrebuiltLoaderSet of all cached dylibs
-	ProgramsPblSetPoolAddr        uint64    `struc:"little"` // (unslid) address of pool of PrebuiltLoaderSet for each program
-	ProgramsPblSetPoolSize        uint64    `struc:"little"` // size of pool of PrebuiltLoaderSet for each program
-	ProgramTrieAddr               uint64    `struc:"little"` // (unslid) address of trie mapping program path to PrebuiltLoaderSet
-	ProgramTrieSize               uint32    `struc:"little"`
-	OsVersion                     uint32    `struc:"little"` // OS Version of dylibs in this cache for the main platform
-	AltPlatform                   uint32    `struc:"little"` // e.g. iOSMac on macOS
-	AltOsVersion                  uint32    `struc:"little"` // e.g. 14.0 for iOSMac
-	SwiftOptsOffset               uint64    `struc:"little"` // VM offset from cache_header* to Swift optimizations header
-	SwiftOptsSize                 uint64    `struc:"little"` // size of Swift optimizations header
-	SubCacheArrayOffset           uint32    `struc:"little"` // file offset to first dyld_subcache_entry
-	SubCacheArrayCount            uint32    `struc:"little"` // number of subCache entries
-	SymbolFileUuid                [16]uint8 // unique value for the shared cache file containing unmapped local symbols
-	RosettaReadOnlyAddr           uint64    `struc:"little"` // (unslid) address of the start of where Rosetta can add read-only/executable data
-	RosettaReadOnlySize           uint64    `struc:"little"` // maximum size of the Rosetta read-only/executable region
-	RosettaReadWriteAddr          uint64    `struc:"little"` // (unslid) address of the start of where Rosetta can add read-write data
-	RosettaReadWriteSize          uint64    `struc:"little"` // maximum size of the Rosetta read-write region
-	ImagesOffset                  uint32    `struc:"little"` // file offset to first dyld_cache_image_info
-	ImagesCount                   uint32    `struc:"little"` // number of dyld_cache_image_info entries
+	MappingWithSlideOffset        uint32        `struc:"little"` // file offset to first dyld_cache_mapping_and_slide_info
+	MappingWithSlideCount         uint32        `struc:"little"` // number of dyld_cache_mapping_and_slide_info entries
+	DylibsPblStateArrayAddrUnused uint64        `struc:"little"` // unused
+	DylibsPblSetAddr              UnslidAddress `struc:"little"` // (unslid) address of PrebuiltLoaderSet of all cached dylibs
+	ProgramsPblSetPoolAddr        UnslidAddress `struc:"little"` // (unslid) address of pool of PrebuiltLoaderSet for each program
+	ProgramsPblSetPoolSize        uint64        `struc:"little"` // size of pool of PrebuiltLoaderSet for each program
+	ProgramTrieAddr               UnslidAddress `struc:"little"` // (unslid) address of trie mapping program path to PrebuiltLoaderSet
+	ProgramTrieSize               uint32        `struc:"little"`
+	OsVersion                     uint32        `struc:"little"` // OS Version of dylibs in this cache for the main platform
+	AltPlatform                   uint32        `struc:"little"` // e.g. iOSMac on macOS
+	AltOsVersion                  uint32        `struc:"little"` // e.g. 14.0 for iOSMac
+	SwiftOptsOffset               uint64        `struc:"little"` // VM offset from cache_header* to Swift optimizations header
+	SwiftOptsSize                 uint64        `struc:"little"` // size of Swift optimizations header
+	SubCacheArrayOffset           uint32        `struc:"little"` // file offset to first dyld_subcache_entry
+	SubCacheArrayCount            uint32        `struc:"little"` // number of subCache entries
+	SymbolFileUuid                [16]uint8     // unique value for the shared cache file containing unmapped local symbols
+	RosettaReadOnlyAddr           UnslidAddress `struc:"little"` // (unslid) address of the start of where Rosetta can add read-only/executable data
+	RosettaReadOnlySize           uint64        `struc:"little"` // maximum size of the Rosetta read-only/executable region
+	RosettaReadWriteAddr          UnslidAddress `struc:"little"` // (unslid) address of the start of where Rosetta can add read-write data
+	RosettaReadWriteSize          uint64        `struc:"little"` // maximum size of the Rosetta read-write region
+	ImagesOffset                  uint32        `struc:"little"` // file offset to first dyld_cache_image_info
+	ImagesCount                   uint32        `struc:"little"` // number of dyld_cache_image_info entries
 }
 
 // Apple considers both those structs to be the same, as V2 simply extends V1
@@ -491,3 +493,180 @@ func (me DYLDCacheHeaderV3) V2() (*DYLDCacheHeaderV2, bool) {
 }
 
 var DYLDCacheHeaderV3CacheSubTypeOffset = unsafe.Offsetof(DYLDCacheHeaderV3{}.CacheSubType)
+
+// From Apple's dyld/common/CachePatching.h
+
+type DYLDCachePatchInfoV1 struct {
+	PatchTableArrayAddr     UnslidAddress `struc:"little"` // (unslid) address of array for dyld_cache_image_patches for each image
+	PatchTableArrayCount    int64         `struc:"little"` // count of patch table entries
+	PatchExportArrayAddr    UnslidAddress `struc:"little"` // (unslid) address of array for patch exports for each image
+	PatchExportArrayCount   int64         `struc:"little"` // count of patch exports entries
+	PatchLocationArrayAddr  UnslidAddress `struc:"little"` // (unslid) address of array for patch locations for each patch
+	PatchLocationArrayCount int64         `struc:"little"` // count of patch location entries
+	PatchExportNamesAddr    int64         `struc:"little"` // blob of strings of export names for patches
+	PatchExportNamesSize    int64         `struc:"little"` // size of string blob of export names for patches
+}
+
+type DYLDCacheImagePatchesV1 struct {
+	PatchExportsStartIndex uint32 `struc:"little"`
+	PatchExportsCount      uint32 `struc:"little"`
+}
+
+type DYLDCachePatchableExportV1 struct {
+	CacheOffsetOfImpl        uint32 `struc:"little"`
+	PatchLocationsStartIndex uint32 `struc:"little"`
+	PatchLocationsCount      uint32 `struc:"little"`
+	ExportNameOffset         uint32 `struc:"little"`
+}
+
+type DYLDCachePatchableLocationV1 struct {
+	CacheOffset uint32                               `struc:"little"`
+	BitField    DYLDCachePatchableLocationV1BitField `struc:"little"`
+}
+
+func (me DYLDCachePatchableLocationV1) GetAddend() int64 {
+	return (int64(me.BitField.Addend()) << 52) >> 52
+}
+
+type DYLDCachePatchableLocationV1BitField int64
+
+func (me DYLDCachePatchableLocationV1BitField) High7() int {
+	return int(me >> 57 & 0x7F)
+}
+
+func (me DYLDCachePatchableLocationV1BitField) Addend() int {
+	return int(me >> 52 & 0x1F) // 0..31
+}
+
+func (me DYLDCachePatchableLocationV1BitField) Authenticated() bool {
+	return me>>51&0x1 == 1
+}
+
+func (me DYLDCachePatchableLocationV1BitField) UsesAddressDiversity() bool {
+	return me>>50&0x1 == 1
+}
+
+func (me DYLDCachePatchableLocationV1BitField) Key() int {
+	return int(me >> 48 & 0x3)
+}
+
+func (me DYLDCachePatchableLocationV1BitField) Discriminator() int {
+	return int(me & 0xFFFF)
+}
+
+func (me DYLDCachePatchableLocationV1BitField) String() string {
+	return fmt.Sprintf("{High7: %d, Addend: %d, Authenticated: %t, UsesAddressDiversity: %t, Key: %d, Discriminator: %d}", me.High7(), me.Addend(), me.Authenticated(), me.UsesAddressDiversity(), me.Key(), me.Discriminator())
+}
+
+// Patches can be different kinds.  This lives in the high nibble of the exportNameOffset,
+// so we restrict these to 4-bits
+const (
+	// Just a normal patch. Isn't one of ther other kinds
+	PATCH_KIND_REGULAR = 0x0
+	// One of { void* isa, uintptr_t }, from CF
+	PATCH_KIND_CFOBJ2 = 0x1
+	// objc patching was added before this enum exists, in just the high bit
+	// of the 4-bit nubble.  This matches that bit layout
+	PATCH_KIND_OBJCCLASS = 0x8
+)
+
+// This is the base for all v2 and newer info
+type DYLDCachePatchInfo struct {
+	PatchTableVersion uint32 `struc:"little"` // == 2 or 3 for now
+}
+
+type DYLDCachePatchInfoV2 struct {
+	DYLDCachePatchInfo
+	PatchLocationVersion         uint32        `struc:"little"` // == 0 for now
+	PatchTableArrayAddr          UnslidAddress `struc:"little"` // (unslid) address of array for dyld_cache_image_patches_v2 for each image
+	PatchTableArrayCount         int64         `struc:"little"` // count of patch table entries
+	PatchImageExportsArrayAddr   UnslidAddress `struc:"little"` // (unslid) address of array for dyld_cache_image_export_v2 for each image
+	PatchImageExportsArrayCount  int64         `struc:"little"` // count of patch table entries
+	PatchClientsArrayAddr        UnslidAddress `struc:"little"` // (unslid) address of array for dyld_cache_image_clients_v2 for each image
+	PatchClientsArrayCount       int64         `struc:"little"` // count of patch clients entries
+	PatchClientExportsArrayAddr  UnslidAddress `struc:"little"` // (unslid) address of array for patch exports for each client image
+	PatchClientExportsArrayCount int64         `struc:"little"` // count of patch exports entries
+	PatchLocationArrayAddr       UnslidAddress `struc:"little"` // (unslid) address of array for patch locations for each patch
+	PatchLocationArrayCount      int64         `struc:"little"` // count of patch location entries
+	PatchExportNamesAddr         int64         `struc:"little"` // blob of strings of export names for patches
+	PatchExportNamesSize         int64         `struc:"little"` // size of string blob of export names for patches
+}
+
+type DYLDCacheImagePatchesV2 struct {
+	PatchClientsStartIndex uint32 `struc:"little"`
+	PatchClientsCount      uint32 `struc:"little"`
+	PatchExportsStartIndex uint32 `struc:"little"` // Points to dyld_cache_image_export_v2[]
+	PatchExportsCount      uint32 `struc:"little"`
+}
+
+type DYLDCacheImageExportV2 struct {
+	DylibOffsetOfImpl uint32                         `struc:"little"` // Offset from the dylib we used to find a dyld_cache_image_patches_v2
+	BitField          DYLDCacheImageExportV2BitField `struc:"little"`
+}
+
+type DYLDCacheImageExportV2BitField int32
+
+func (me DYLDCacheImageExportV2BitField) ExportNameOffset() uint32 {
+	return uint32(me & 0xFFFFFFF)
+}
+
+func (me DYLDCacheImageExportV2BitField) PatchKind() uint32 {
+	return uint32(me >> 28 & 0xF) // One of DyldSharedCache::patchKind
+}
+
+func (me DYLDCacheImageExportV2BitField) String() string {
+	return fmt.Sprintf("{ExportNameOffset: %d, PatchKind: %d}", me.ExportNameOffset(), me.PatchKind())
+}
+
+type DYLDCacheImageClientsV2 struct {
+	ClientDylibIndex       uint32 `struc:"little"`
+	PatchExportsStartIndex uint32 `struc:"little"` // Points to dyld_cache_patchable_export_v2[]
+	PatchExportsCount      uint32 `struc:"little"`
+}
+
+type DYLDCachePatchableExportV2 struct {
+	ImageExportIndex         uint32 `struc:"little"` // Points to dyld_cache_image_export_v2
+	PatchLocationsStartIndex uint32 `struc:"little"` // Points to dyld_cache_patchable_location_v2[]
+	PatchLocationsCount      uint32 `struc:"little"`
+}
+
+type DYLDCachePatchableLocationV2 struct {
+	DylibOffsetOfUse uint32                               `struc:"little"` // Offset from the dylib we used to get a dyld_cache_image_clients_v2
+	BitField         DYLDCachePatchableLocationV1BitField `struc:"little"`
+}
+
+func (me DYLDCachePatchableLocationV2) GetAddend() int64 {
+	return (int64(me.BitField.Addend()) << 52) >> 52
+}
+
+type DYLDCachePatchInfoV3 struct {
+	DYLDCachePatchInfoV2
+	// uint32_t    patchTableVersion;       // == 3
+	// ... other fields from dyld_cache_patch_info_v2
+	GotClientsArrayAddr        UnslidAddress `struc:"little"` // (unslid) address of array for dyld_cache_image_got_clients_v3 for each image
+	GotClientsArrayCount       int64         `struc:"little"` // count of got clients entries.  Should always match the patchTableArrayCount
+	GotClientExportsArrayAddr  UnslidAddress `struc:"little"` // (unslid) address of array for patch exports for each GOT image
+	GotClientExportsArrayCount int64         `struc:"little"` // count of patch exports entries
+	GotLocationArrayAddr       UnslidAddress `struc:"little"` // (unslid) address of array for patch locations for each GOT patch
+	GotLocationArrayCount      int64         `struc:"little"` // count of patch location entries
+}
+
+type DYLDCacheImageGotClientsV3 struct {
+	PatchExportsStartIndex uint32 `struc:"little"` // Points to dyld_cache_patchable_export_v3[]
+	PatchExportsCount      uint32 `struc:"little"`
+}
+
+type DYLDCachePatchableExportV3 struct {
+	ImageExportIndex         uint32 `struc:"little"` // Points to dyld_cache_image_export_v2
+	PatchLocationsStartIndex uint32 `struc:"little"` // Points to dyld_cache_patchable_location_v3[]
+	PatchLocationsCount      uint32 `struc:"little"`
+}
+
+type DYLDCachePatchableLocationV3 struct {
+	CacheOffsetOfUse int64                                `struc:"little"` // Offset from the cache header
+	BitField         DYLDCachePatchableLocationV1BitField `struc:"little"`
+}
+
+func (me DYLDCachePatchableLocationV3) GetAddend() int64 {
+	return (int64(me.BitField.Addend()) << 52) >> 52
+}

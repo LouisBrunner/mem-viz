@@ -30,6 +30,10 @@ func (me *fromMemoryCache) ReaderAtOffset(off int64) io.Reader {
 	return &fromMemoryReader{pointer: me.pointer + uintptr(off)}
 }
 
+func (me *fromMemoryCache) ReaderAbsolute(abs uint64) io.Reader {
+	return &fromMemoryReader{pointer: uintptr(abs)}
+}
+
 func (me *fromMemoryCache) String() string {
 	return fmt.Sprintf("Memory{pointer: %#x, header: %+v}", me.pointer, me.header)
 }
@@ -46,6 +50,10 @@ func cacheFromMemory(logger *logrus.Logger, pointer uintptr) (_ *fromMemoryCache
 
 	mem := &fromMemoryCache{pointer: pointer}
 	err := commons.Unpack(mem.ReaderAtOffset(0), &mem.header)
+	if err != nil {
+		return nil, err
+	}
+	err = checkMagic(mem.header)
 	if err != nil {
 		return nil, err
 	}

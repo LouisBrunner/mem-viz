@@ -26,6 +26,10 @@ func (me *fromFileCache) ReaderAtOffset(off int64) io.Reader {
 	return io.NewSectionReader(me.file, off, math.MaxInt64)
 }
 
+func (me *fromFileCache) ReaderAbsolute(abs uint64) io.Reader {
+	return me.ReaderAtOffset(int64(abs))
+}
+
 func (me *fromFileCache) Header() contracts.DYLDCacheHeaderV3 {
 	return me.header
 }
@@ -44,8 +48,9 @@ func cacheFromFile(logger *logrus.Logger, file *os.File) (*fromFileCache, error)
 	if err != nil {
 		return nil, err
 	}
-	if string(cache.header.Magic[:])[0:7] != "dyld_v1" {
-		return nil, fmt.Errorf("invalid magic %s", cache.header.Magic)
+	err = checkMagic(cache.header)
+	if err != nil {
+		return nil, err
 	}
 	return cache, nil
 }

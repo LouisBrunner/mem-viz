@@ -22,7 +22,10 @@ func Parse(fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, error) {
 
 	var subCacheEntries *contracts.MemoryBlock
 	if l := len(fetcher.SubCaches()); l > 0 {
-		subCacheEntries = createEmptyBlock(mainBlock, fmt.Sprintf("Subcache Entries (%d)", l), uint64(mainHeader.SubCacheArrayOffset))
+		subCacheEntries, err = createEmptyBlock(mainBlock, fmt.Sprintf("Subcache Entries (%d)", l), uint64(mainHeader.SubCacheArrayOffset))
+		if err != nil {
+			return nil, err
+		}
 	}
 	for i, cache := range fetcher.SubCaches() {
 		v2, v1 := cache.SubCacheHeader()

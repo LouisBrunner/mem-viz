@@ -110,6 +110,10 @@ func (me *fetcher[T, F]) Header() contracts.DYLDCacheHeaderV3 {
 	return me.main.Header()
 }
 
+func (me *fetcher[T, F]) ReaderAbsolute(abs uint64) io.Reader {
+	return me.main.ReaderAbsolute(abs)
+}
+
 func (me *fetcher[T, F]) ReaderAtOffset(offset int64) io.Reader {
 	return me.main.ReaderAtOffset(offset)
 }

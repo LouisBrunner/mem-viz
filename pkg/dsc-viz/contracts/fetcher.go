@@ -8,6 +8,7 @@ import (
 type Cache interface {
 	BaseAddress() uintptr
 	Header() DYLDCacheHeaderV3
+	ReaderAbsolute(abs uint64) io.Reader
 	ReaderAtOffset(off int64) io.Reader
 	io.Closer
 	fmt.Stringer
