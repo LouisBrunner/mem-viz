@@ -60,10 +60,7 @@ func parseAndAddMultipleStructs[T any, A addressOrOffset](cache subcontracts.Cac
 }
 
 func parseAndAddBlob[T any, A addressOrOffset](cache subcontracts.Cache, inside *contracts.MemoryBlock, from *contracts.MemoryBlock, fieldName string, offset A, fieldSizeName string, size uint64, data T, label string) (*contracts.MemoryBlock, *contracts.MemoryBlock, T, error) {
-	fmt.Printf("parseAndAddBlob(%s, %s, %s, %d, %s, %d, %+v, %s)\n", inside.Name, from.Name, fieldName, offset, fieldSizeName, size, data, label)
-	fmt.Printf("%T\n", offset)
 	blob, err := createBlobBlock(inside, from, fieldName, offset, fieldSizeName, size, label)
-	fmt.Printf("%+v\n", blob)
 	if err != nil {
 		return nil, nil, data, err
 	}
