@@ -16,6 +16,10 @@ import (
 func (me *outputter) Text(m contracts.MemoryBlock) error {
 	// TODO: make this configurable on (mem|dsc)-viz
 	const thresholdsArrayTooBig = 20
+	const showLinks = true
+	const showHiddenLinks = true
+	const showProperties = true
+	const showUnused = true
 
 	const indentStr = "  "
 
@@ -55,7 +59,7 @@ func (me *outputter) Text(m contracts.MemoryBlock) error {
 	parentsEnd := map[int]uintptr{}
 
 	flushUnused := func(from, to uintptr, depth int) {
-		if from == 0 || from >= to {
+		if !showUnused || from == 0 || from >= to {
 			return
 		}
 
@@ -67,22 +71,25 @@ func (me *outputter) Text(m contracts.MemoryBlock) error {
 		builder.Writef(formatUnused, from, to, humanize.Bytes(uint64(to-from)), indent(depth, indentStr))
 	}
 
-	flushLinks := func(upTo, lastAddress uintptr, depth int) {
+	flushEach := func(upTo, lastAddress uintptr, depth int) {
 		lastUnused := lastAddress
-		for linksIndex < len(linksOrder) && upTo > linksOrder[linksIndex] {
-			addr := linksOrder[linksIndex]
 
-			flushUnused(lastUnused, addr, depth)
+		if showLinks && showHiddenLinks {
+			for linksIndex < len(linksOrder) && upTo > linksOrder[linksIndex] {
+				addr := linksOrder[linksIndex]
 
-			origins := links[linksOrder[linksIndex]]
-			originsText := make([]string, len(origins))
-			for i, origin := range origins {
-				originsText[i] = origin.String()
+				flushUnused(lastUnused, addr, depth)
+
+				origins := links[linksOrder[linksIndex]]
+				originsText := make([]string, len(origins))
+				for i, origin := range origins {
+					originsText[i] = origin.String()
+				}
+				builder.Writef(formatLink, addr, "", "", strings.Join(originsText, ", "))
+				linksIndex += 1
+
+				lastUnused = addr
 			}
-			builder.Writef(formatLink, addr, "", "", strings.Join(originsText, ", "))
-			linksIndex += 1
-
-			lastUnused = addr
 		}
 
 		flushUnused(lastUnused, upTo, depth)
@@ -90,25 +97,27 @@ func (me *outputter) Text(m contracts.MemoryBlock) error {
 
 	lastAddress := uintptr(0)
 	err := commons.VisitEachBlock(&m, func(ctx commons.VisitContext, block *contracts.MemoryBlock) error {
-		flushLinks(block.Address, lastAddress, ctx.Depth)
+		flushEach(block.Address, lastAddress, ctx.Depth)
 
 		size := block.GetSize()
-		if ctx.Parent == nil || len(ctx.Parent.Content) < thresholdsArrayTooBig {
-			linksSuffixes := []string{}
-			for linksIndex < len(linksOrder) && uintptr(block.Address) == linksOrder[linksIndex] {
-				origins := links[linksOrder[linksIndex]]
-				for _, origin := range origins {
-					linksSuffixes = append(linksSuffixes, origin.String())
-				}
-				linksIndex += 1
-			}
+		if ctx.Parent == nil || thresholdsArrayTooBig == 0 || len(ctx.Parent.Content) < thresholdsArrayTooBig {
 			linksSuffix := ""
-			if len(linksSuffixes) > 0 {
-				linksSuffix = fmt.Sprintf(" <- %s", strings.Join(linksSuffixes, ", "))
+			if showLinks {
+				linksSuffixes := []string{}
+				for linksIndex < len(linksOrder) && uintptr(block.Address) == linksOrder[linksIndex] {
+					origins := links[linksOrder[linksIndex]]
+					for _, origin := range origins {
+						linksSuffixes = append(linksSuffixes, origin.String())
+					}
+					linksIndex += 1
+				}
+				if len(linksSuffixes) > 0 {
+					linksSuffix = fmt.Sprintf(" <- %s", strings.Join(linksSuffixes, ", "))
+				}
 			}
 
 			details := ""
-			if len(block.Values) > 0 {
+			if showProperties && len(block.Values) > 0 {
 				detailsList := make([]string, len(block.Values))
 				for i, value := range block.Values {
 					detailsList[i] = fmt.Sprintf("%s:%s", makeAcronym(value.Name), value.Value)
@@ -126,7 +135,7 @@ func (me *outputter) Text(m contracts.MemoryBlock) error {
 		return err
 	}
 
-	flushLinks(math.MaxUint64, 0, 0)
+	flushEach(math.MaxUint64, 0, 0)
 
 	return builder.Close()
 }

@@ -9,12 +9,11 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// TODO: should be a dsc-viz flag
-const thresholdsArrayTooBig = 3000
-
 type parser struct {
-	logger *logrus.Logger
-	slide  uint64
+	logger                *logrus.Logger
+	slide                 uint64
+	addSizeLink           bool
+	thresholdsArrayTooBig uint64
 }
 
 func Parse(logger *logrus.Logger, fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, error) {
@@ -28,6 +27,9 @@ func Parse(logger *logrus.Logger, fetcher subcontracts.Fetcher) (*contracts.Memo
 	parser := parser{
 		logger: logger,
 		slide:  slide,
+		// TODO: should be dsc-viz flags
+		addSizeLink:           false,
+		thresholdsArrayTooBig: 3000,
 	}
 	return parser.parse(fetcher)
 }

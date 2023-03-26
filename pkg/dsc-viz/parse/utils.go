@@ -11,12 +11,22 @@ import (
 	"golang.org/x/exp/slices"
 )
 
+// FIXME: disgusting reflection but no other way unless Go supports generics on function receivers
+
 func getDataValue(v interface{}) reflect.Value {
 	dat := reflect.ValueOf(v)
 	for dat.Kind() == reflect.Ptr {
 		dat = dat.Elem()
 	}
 	return dat
+}
+
+func copyDataValue(v interface{}) interface{} {
+	dat := reflect.ValueOf(v)
+	for dat.Kind() == reflect.Ptr {
+		dat = dat.Elem()
+	}
+	return dat.Interface()
 }
 
 func addChild(parent, child *contracts.MemoryBlock) {

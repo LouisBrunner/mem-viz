@@ -129,7 +129,7 @@ type DYLDCacheImageInfoExtra struct {
 type DYLDCacheAcceleratorInfo struct {
 	Version            uint32 `struc:"little"` // currently 1
 	ImageExtrasCount   uint32 `struc:"little"` // does not include aliases
-	ImagesExtrasOffset uint32 `struc:"little"` // offset into this chunk of first dyld_cache_image_info_extra
+	ImagesExtrasOffset uint32 `struc:"little"` // offset into this chunk of first DYLDCacheImageInfoExtra
 	BottomUpListOffset uint32 `struc:"little"` // offset into this chunk to start of 16-bit array of sorted image indexes
 	DylibTrieOffset    uint32 `struc:"little"` // offset into this chunk to start of trie containing all dylib paths
 	DylibTrieSize      uint32 `struc:"little"` // size of trie containing all dylib paths
@@ -296,8 +296,8 @@ type DYLDCacheLocalSymbolsInfo struct {
 	NlistCount    uint32 `struc:"little"` // count of nlist entries
 	StringsOffset uint32 `struc:"little"` // offset into this chunk of string pool
 	StringsSize   uint32 `struc:"little"` // byte count of string pool
-	EntriesOffset uint32 `struc:"little"` // offset into this chunk of array of dyld_cache_local_symbols_entry
-	EntriesCount  uint32 `struc:"little"` // number of elements in dyld_cache_local_symbols_entry array
+	EntriesOffset uint32 `struc:"little"` // offset into this chunk of array of DYLDCacheLocalSymbolsEntry
+	EntriesCount  uint32 `struc:"little"` // number of elements in DYLDCacheLocalSymbolsEntry array
 }
 
 type DYLDCacheLocalSymbolsEntry struct {
@@ -354,10 +354,10 @@ const (
 
 type DYLDCacheHeaderV1 struct {
 	Magic                [16]byte                  // e.g. "dyld_v0    i386"
-	MappingOffset        RelativeAddress32         `struc:"little"` // file offset to first dyld_cache_mapping_info
-	MappingCount         uint32                    `struc:"little"` // number of dyld_cache_mapping_info entries
-	ImagesOffset         RelativeAddress32         `struc:"little"` // file offset to first dyld_cache_image_info
-	ImagesCount          uint32                    `struc:"little"` // number of dyld_cache_image_info entries
+	MappingOffset        RelativeAddress32         `struc:"little"` // file offset to first DYLDCacheMappingInfo
+	MappingCount         uint32                    `struc:"little"` // number of DYLDCacheMappingInfo entries
+	ImagesOffset         RelativeAddress32         `struc:"little"` // file offset to first DYLDCacheImageInfo
+	ImagesCount          uint32                    `struc:"little"` // number of DYLDCacheImageInfo entries
 	DyldBaseAddress      uint64                    `struc:"little"` // base address of dyld when cache was built
 	CodeSignatureOffset  uint64                    `struc:"little"` // file offset of code signature blob
 	CodeSignatureSize    uint64                    `struc:"little"` // size of code signature blob (zero means to end of file)
@@ -371,8 +371,8 @@ type DYLDCacheHeaderV1 struct {
 	BranchPoolsCount     uint32                    `struc:"little"` // number of uint64_t entries
 	AccelerateInfoAddr   UnslidAddress             `struc:"little"` // (unslid) address of optimization info
 	AccelerateInfoSize   uint64                    `struc:"little"` // size of optimization info
-	ImagesTextOffset     RelativeAddress64         `struc:"little"` // file offset to first dyld_cache_image_text_info
-	ImagesTextCount      uint64                    `struc:"little"` // number of dyld_cache_image_text_info entries
+	ImagesTextOffset     RelativeAddress64         `struc:"little"` // file offset to first DYLDCacheImageTextInfo
+	ImagesTextCount      uint64                    `struc:"little"` // number of DYLDCacheImageTextInfo entries
 	DylibsImageGroupAddr UnslidAddress             `struc:"little"` // (unslid) address of ImageGroup for dylibs in this cache
 	DylibsImageGroupSize uint64                    `struc:"little"` // size of ImageGroup for dylibs in this cache
 	OtherImageGroupAddr  UnslidAddress             `struc:"little"` // (unslid) address of ImageGroup for other OS dylibs
@@ -424,8 +424,8 @@ func (me DYLDCacheHeaderV1BitField) String() string {
 
 type DYLDCacheHeaderV2 struct {
 	Magic                     [16]byte                  // e.g. "dyld_v0    i386"
-	MappingOffset             RelativeAddress32         `struc:"little"` // file offset to first dyld_cache_mapping_info
-	MappingCount              uint32                    `struc:"little"` // number of dyld_cache_mapping_info entries
+	MappingOffset             RelativeAddress32         `struc:"little"` // file offset to first DYLDCacheMappingInfo
+	MappingCount              uint32                    `struc:"little"` // number of DYLDCacheMappingInfo entries
 	ImagesOffsetOld           uint32                    `struc:"little"` // UNUSED: moved to imagesOffset to prevent older dsc_extarctors from crashing
 	ImagesCountOld            uint32                    `struc:"little"` // UNUSED: moved to imagesCount to prevent older dsc_extarctors from crashing
 	DyldBaseAddress           uint64                    `struc:"little"` // base address of dyld when cache was built
@@ -441,10 +441,10 @@ type DYLDCacheHeaderV2 struct {
 	BranchPoolsCount          uint32                    `struc:"little"` // number of uint64_t entries
 	DyldInCacheMh             UnslidAddress             `struc:"little"` // (unslid) address of mach_header of dyld in cache
 	DyldInCacheEntry          UnslidAddress             `struc:"little"` // (unslid) address of entry point (_dyld_start) of dyld in cache
-	ImagesTextOffset          RelativeAddress64         `struc:"little"` // file offset to first dyld_cache_image_text_info
-	ImagesTextCount           uint64                    `struc:"little"` // number of dyld_cache_image_text_info entries
-	PatchInfoAddr             UnslidAddress             `struc:"little"` // (unslid) address of dyld_cache_patch_info
-	PatchInfoSize             uint64                    `struc:"little"` // Size of all of the patch information pointed to via the dyld_cache_patch_info
+	ImagesTextOffset          RelativeAddress64         `struc:"little"` // file offset to first DYLDCacheImageTextInfo
+	ImagesTextCount           uint64                    `struc:"little"` // number of DYLDCacheImageTextInfo entries
+	PatchInfoAddr             UnslidAddress             `struc:"little"` // (unslid) address of DYLDCachePatchInfo
+	PatchInfoSize             uint64                    `struc:"little"` // Size of all of the patch information pointed to via the DYLDCachePatchInfo
 	OtherImageGroupAddrUnused uint64                    `struc:"little"` // unused
 	OtherImageGroupSizeUnused uint64                    `struc:"little"` // unused
 	ProgClosuresAddr          UnslidAddress             `struc:"little"` // (unslid) address of list of program launch closures
@@ -465,8 +465,8 @@ type DYLDCacheHeaderV2 struct {
 	OtherTrieAddr             UnslidAddress             `struc:"little"` // (unslid) address of trie of indexes of all dylibs and bundles with dlopen closures
 	OtherTrieSize             uint64                    `struc:"little"` // size of trie of dylibs and bundles with dlopen closures
 	// End of V1 (not using an embedded struct to avoid losing the name and to use the right bitfield)
-	MappingWithSlideOffset        RelativeAddress32 `struc:"little"` // file offset to first dyld_cache_mapping_and_slide_info
-	MappingWithSlideCount         uint32            `struc:"little"` // number of dyld_cache_mapping_and_slide_info entries
+	MappingWithSlideOffset        RelativeAddress32 `struc:"little"` // file offset to first DYLDCacheMappingAndSlideInfo
+	MappingWithSlideCount         uint32            `struc:"little"` // number of DYLDCacheMappingAndSlideInfo entries
 	DylibsPblStateArrayAddrUnused uint64            `struc:"little"` // unused
 	DylibsPblSetAddr              UnslidAddress     `struc:"little"` // (unslid) address of PrebuiltLoaderSet of all cached dylibs
 	ProgramsPblSetPoolAddr        UnslidAddress     `struc:"little"` // (unslid) address of pool of PrebuiltLoaderSet for each program
@@ -485,8 +485,8 @@ type DYLDCacheHeaderV2 struct {
 	RosettaReadOnlySize           uint64            `struc:"little"` // maximum size of the Rosetta read-only/executable region
 	RosettaReadWriteAddr          UnslidAddress     `struc:"little"` // (unslid) address of the start of where Rosetta can add read-write data
 	RosettaReadWriteSize          uint64            `struc:"little"` // maximum size of the Rosetta read-write region
-	ImagesOffset                  RelativeAddress32 `struc:"little"` // file offset to first dyld_cache_image_info
-	ImagesCount                   uint32            `struc:"little"` // number of dyld_cache_image_info entries
+	ImagesOffset                  RelativeAddress32 `struc:"little"` // file offset to first DYLDCacheImageInfo
+	ImagesCount                   uint32            `struc:"little"` // number of DYLDCacheImageInfo entries
 }
 
 // Apple considers both those structs to be the same, as V2 simply extends V1
@@ -539,7 +539,7 @@ type DYLDCacheHeaderV3 struct {
 	ObjcOptsSize       uint64            `struc:"big"`    // size of ObjC optimizations header
 	CacheAtlasOffset   RelativeAddress64 `struc:"big"`    // VM offset from cache_header* to embedded cache atlas for process introspection
 	CacheAtlasSize     uint64            `struc:"big"`    // size of embedded cache atlas
-	DynamicDataOffset  RelativeAddress64 `struc:"big"`    // VM offset from cache_header* to the location of dyld_cache_dynamic_data_header
+	DynamicDataOffset  RelativeAddress64 `struc:"big"`    // VM offset from cache_header* to the location of DYLDCacheDynamicDataHeader
 	DynamicDataMaxSize uint64            `struc:"big"`    // maximum size of space reserved from dynamic data
 }
 
@@ -557,7 +557,7 @@ var DYLDCacheHeaderV3CacheSubTypeOffset = unsafe.Offsetof(DYLDCacheHeaderV3{}.Ca
 // From Apple's dyld/common/CachePatching.h
 
 type DYLDCachePatchInfoV1 struct {
-	PatchTableArrayAddr     UnslidAddress `struc:"little"` // (unslid) address of array for dyld_cache_image_patches for each image
+	PatchTableArrayAddr     UnslidAddress `struc:"little"` // (unslid) address of array for DYLDCacheImagePatches for each image
 	PatchTableArrayCount    int64         `struc:"little"` // count of patch table entries
 	PatchExportArrayAddr    UnslidAddress `struc:"little"` // (unslid) address of array for patch exports for each image
 	PatchExportArrayCount   int64         `struc:"little"` // count of patch exports entries
@@ -588,26 +588,26 @@ func (me DYLDCachePatchableLocationV1) GetAddend() int64 {
 	return (int64(me.BitField.Addend()) << 52) >> 52
 }
 
-type DYLDCachePatchableLocationV1BitField int64
+type DYLDCachePatchableLocationV1BitField int32
 
 func (me DYLDCachePatchableLocationV1BitField) High7() int {
-	return int(me >> 57 & 0x7F)
+	return int(me>>25) & 0x7F
 }
 
 func (me DYLDCachePatchableLocationV1BitField) Addend() int {
-	return int(me >> 52 & 0x1F) // 0..31
+	return int(me>>20) & 0x1F
 }
 
 func (me DYLDCachePatchableLocationV1BitField) Authenticated() bool {
-	return me>>51&0x1 == 1
+	return me>>19&0x1 == 1
 }
 
 func (me DYLDCachePatchableLocationV1BitField) UsesAddressDiversity() bool {
-	return me>>50&0x1 == 1
+	return me>>18&0x1 == 1
 }
 
 func (me DYLDCachePatchableLocationV1BitField) Key() int {
-	return int(me >> 48 & 0x3)
+	return int(me>>16) & 0x3
 }
 
 func (me DYLDCachePatchableLocationV1BitField) Discriminator() int {
@@ -638,29 +638,29 @@ type DYLDCachePatchInfo struct {
 type DYLDCachePatchInfoV2 struct {
 	DYLDCachePatchInfo
 	PatchLocationVersion         uint32        `struc:"little"` // == 0 for now
-	PatchTableArrayAddr          UnslidAddress `struc:"little"` // (unslid) address of array for dyld_cache_image_patches_v2 for each image
+	PatchTableArrayAddr          UnslidAddress `struc:"little"` // (unslid) address of array for DYLDCacheImagePatchesV2 for each image
 	PatchTableArrayCount         int64         `struc:"little"` // count of patch table entries
-	PatchImageExportsArrayAddr   UnslidAddress `struc:"little"` // (unslid) address of array for dyld_cache_image_export_v2 for each image
+	PatchImageExportsArrayAddr   UnslidAddress `struc:"little"` // (unslid) address of array for DYLDCacheImageExportV2 for each image
 	PatchImageExportsArrayCount  int64         `struc:"little"` // count of patch table entries
-	PatchClientsArrayAddr        UnslidAddress `struc:"little"` // (unslid) address of array for dyld_cache_image_clients_v2 for each image
+	PatchClientsArrayAddr        UnslidAddress `struc:"little"` // (unslid) address of array for DYLDCacheImageClientsV2 for each image
 	PatchClientsArrayCount       int64         `struc:"little"` // count of patch clients entries
 	PatchClientExportsArrayAddr  UnslidAddress `struc:"little"` // (unslid) address of array for patch exports for each client image
 	PatchClientExportsArrayCount int64         `struc:"little"` // count of patch exports entries
 	PatchLocationArrayAddr       UnslidAddress `struc:"little"` // (unslid) address of array for patch locations for each patch
 	PatchLocationArrayCount      int64         `struc:"little"` // count of patch location entries
-	PatchExportNamesAddr         int64         `struc:"little"` // blob of strings of export names for patches
+	PatchExportNamesAddr         UnslidAddress `struc:"little"` // blob of strings of export names for patches
 	PatchExportNamesSize         int64         `struc:"little"` // size of string blob of export names for patches
 }
 
 type DYLDCacheImagePatchesV2 struct {
 	PatchClientsStartIndex uint32 `struc:"little"`
 	PatchClientsCount      uint32 `struc:"little"`
-	PatchExportsStartIndex uint32 `struc:"little"` // Points to dyld_cache_image_export_v2[]
+	PatchExportsStartIndex uint32 `struc:"little"` // Points to DYLDCacheImageExportV2[]
 	PatchExportsCount      uint32 `struc:"little"`
 }
 
 type DYLDCacheImageExportV2 struct {
-	DylibOffsetOfImpl uint32                         `struc:"little"` // Offset from the dylib we used to find a dyld_cache_image_patches_v2
+	DylibOffsetOfImpl uint32                         `struc:"little"` // Offset from the dylib we used to find a DYLDCacheImagePatchesV2
 	BitField          DYLDCacheImageExportV2BitField `struc:"little"`
 }
 
@@ -680,18 +680,18 @@ func (me DYLDCacheImageExportV2BitField) String() string {
 
 type DYLDCacheImageClientsV2 struct {
 	ClientDylibIndex       uint32 `struc:"little"`
-	PatchExportsStartIndex uint32 `struc:"little"` // Points to dyld_cache_patchable_export_v2[]
+	PatchExportsStartIndex uint32 `struc:"little"` // Points to DYLDCachePatchableExportV2[]
 	PatchExportsCount      uint32 `struc:"little"`
 }
 
 type DYLDCachePatchableExportV2 struct {
-	ImageExportIndex         uint32 `struc:"little"` // Points to dyld_cache_image_export_v2
-	PatchLocationsStartIndex uint32 `struc:"little"` // Points to dyld_cache_patchable_location_v2[]
+	ImageExportIndex         uint32 `struc:"little"` // Points to DYLDCacheImageExportV2
+	PatchLocationsStartIndex uint32 `struc:"little"` // Points to DYLDCachePatchableLocationV2[]
 	PatchLocationsCount      uint32 `struc:"little"`
 }
 
 type DYLDCachePatchableLocationV2 struct {
-	DylibOffsetOfUse uint32                               `struc:"little"` // Offset from the dylib we used to get a dyld_cache_image_clients_v2
+	DylibOffsetOfUse uint32                               `struc:"little"` // Offset from the dylib we used to get a DYLDCacheImageClientsV2
 	BitField         DYLDCachePatchableLocationV1BitField `struc:"little"`
 }
 
@@ -702,8 +702,8 @@ func (me DYLDCachePatchableLocationV2) GetAddend() int64 {
 type DYLDCachePatchInfoV3 struct {
 	DYLDCachePatchInfoV2
 	// uint32_t    patchTableVersion;       // == 3
-	// ... other fields from dyld_cache_patch_info_v2
-	GotClientsArrayAddr        UnslidAddress `struc:"little"` // (unslid) address of array for dyld_cache_image_got_clients_v3 for each image
+	// ... other fields from DYLDCachePatchInfoV2
+	GotClientsArrayAddr        UnslidAddress `struc:"little"` // (unslid) address of array for DYLDCacheImageGotClientsV3 for each image
 	GotClientsArrayCount       int64         `struc:"little"` // count of got clients entries.  Should always match the patchTableArrayCount
 	GotClientExportsArrayAddr  UnslidAddress `struc:"little"` // (unslid) address of array for patch exports for each GOT image
 	GotClientExportsArrayCount int64         `struc:"little"` // count of patch exports entries
@@ -712,13 +712,13 @@ type DYLDCachePatchInfoV3 struct {
 }
 
 type DYLDCacheImageGotClientsV3 struct {
-	PatchExportsStartIndex uint32 `struc:"little"` // Points to dyld_cache_patchable_export_v3[]
+	PatchExportsStartIndex uint32 `struc:"little"` // Points to DYLDCachePatchableExportV3[]
 	PatchExportsCount      uint32 `struc:"little"`
 }
 
 type DYLDCachePatchableExportV3 struct {
-	ImageExportIndex         uint32 `struc:"little"` // Points to dyld_cache_image_export_v2
-	PatchLocationsStartIndex uint32 `struc:"little"` // Points to dyld_cache_patchable_location_v3[]
+	ImageExportIndex         uint32 `struc:"little"` // Points to DYLDCacheImageExportV2
+	PatchLocationsStartIndex uint32 `struc:"little"` // Points to DYLDCachePatchableLocationV3[]
 	PatchLocationsCount      uint32 `struc:"little"`
 }
 

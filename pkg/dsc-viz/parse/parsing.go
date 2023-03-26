@@ -34,15 +34,22 @@ func (me *parser) addArrayBlock(frame *blockFrame, fieldName string, offset subc
 	if err != nil {
 		return nil, nil, 0, err
 	}
-	err = addLink(frame.parentStruct, countFieldName, arrayBlock, "gives size")
-	if err != nil {
-		return nil, nil, 0, err
+	if me.addSizeLink {
+		err = addLink(frame.parentStruct, countFieldName, arrayBlock, "gives size")
+		if err != nil {
+			return nil, nil, 0, err
+		}
 	}
 	return arrayBlock, offsetFromDefiner, size, nil
 }
 
-func (me *parser) parseAndAddArray(frame *blockFrame, fieldName string, offset subcontracts.Address, countFieldName string, count uint64, data any, label string) (*contracts.MemoryBlock, []*contracts.MemoryBlock, error) {
-	if count > thresholdsArrayTooBig {
+type arrayElement struct {
+	Block *contracts.MemoryBlock
+	Data  interface{}
+}
+
+func (me *parser) parseAndAddArray(frame *blockFrame, fieldName string, offset subcontracts.Address, countFieldName string, count uint64, data any, label string) (*contracts.MemoryBlock, []arrayElement, error) {
+	if me.thresholdsArrayTooBig != 0 && count > me.thresholdsArrayTooBig {
 		arrayBlock, err := me.parseAndAddArrayOnly(frame, fieldName, offset, countFieldName, count, data, label)
 		return arrayBlock, nil, err
 	}
@@ -57,7 +64,7 @@ func (me *parser) parseAndAddArray(frame *blockFrame, fieldName string, offset s
 		return nil, nil, nil
 	}
 
-	blocks := make([]*contracts.MemoryBlock, 0, count)
+	items := make([]arrayElement, 0, count)
 	for i := uint64(0); i < count; i += 1 {
 		itemOffset := i * size
 		block, err := me.parseAndAdd(offset.GetReader(frame.cache, itemOffset, me.slide), arrayBlock, frame.parentStruct, subcontracts.RelativeAddress64(itemOffset), data, fmt.Sprintf("%s %d/%d", label, i+1, count))
@@ -65,9 +72,9 @@ func (me *parser) parseAndAddArray(frame *blockFrame, fieldName string, offset s
 			return nil, nil, err
 		}
 
-		blocks = append(blocks, block)
+		items = append(items, arrayElement{Block: block, Data: copyDataValue(data)})
 	}
-	return arrayBlock, blocks, nil
+	return arrayBlock, items, nil
 }
 
 func (me *parser) parseAndAddArrayOnly(frame *blockFrame, fieldName string, offset subcontracts.Address, countFieldName string, count uint64, data any, label string) (*contracts.MemoryBlock, error) {

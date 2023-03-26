@@ -2,9 +2,7 @@ package parse
 
 import (
 	"fmt"
-	"unsafe"
 
-	"github.com/LouisBrunner/mem-viz/pkg/commons"
 	"github.com/LouisBrunner/mem-viz/pkg/contracts"
 	subcontracts "github.com/LouisBrunner/mem-viz/pkg/dsc-viz/contracts"
 )
@@ -37,11 +35,16 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 	}
 	// TODO: dig deeper in each mapping
 	if okV1 {
-		_, _, err = me.parseAndAddArray(frame, "ImagesOffset", v1.ImagesOffset, "ImagesCount", uint64(v1.ImagesCount), &subcontracts.DYLDCacheImageInfo{}, "Images")
+		_, imgs, err := me.parseAndAddArray(frame, "ImagesOffset", v1.ImagesOffset, "ImagesCount", uint64(v1.ImagesCount), &subcontracts.DYLDCacheImageInfo{}, "Images")
 		if err != nil {
 			return nil, nil, err
 		}
-		// TODO: dig deeper in each image
+		for _, img := range imgs {
+			err = me.parseImage(frame, img)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
 	}
 	_, err = me.createBlobBlock(frame, "CodeSignatureOffset", header.CodeSignatureOffset, "CodeSignatureSize", header.CodeSignatureSize, "Code Signature")
 	if err != nil {
@@ -159,11 +162,16 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 	if err != nil {
 		return nil, nil, err
 	}
-	_, _, err = me.parseAndAddArray(frame, "ImagesOffset", header.ImagesOffset, "ImagesCount", uint64(header.ImagesCount), &subcontracts.DYLDCacheImageInfo{}, "Images")
+	_, imgs, err := me.parseAndAddArray(frame, "ImagesOffset", header.ImagesOffset, "ImagesCount", uint64(header.ImagesCount), &subcontracts.DYLDCacheImageInfo{}, "Images")
 	if err != nil {
 		return nil, nil, err
 	}
-	// TODO: dig deeper in each image
+	for _, img := range imgs {
+		err = me.parseImage(frame, img)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
 	if okV2 {
 		return block, headerBlock, nil
 	}
@@ -187,115 +195,4 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 		}
 	}
 	return block, headerBlock, nil
-}
-
-func (me *parser) addSubCacheEntry(parent, headerBlock, subCache *contracts.MemoryBlock, header subcontracts.DYLDCacheHeaderV3, v2 *subcontracts.DYLDSubcacheEntryV2, v1 *subcontracts.DYLDSubcacheEntryV1, index uint64) error {
-	var block *contracts.MemoryBlock
-	var err error
-	label := "Subcache Entry"
-	if v2 != nil {
-		block, err = me.createStructBlock(parent, *v2, fmt.Sprintf("%s (V2)", label), subcontracts.RelativeAddress64(index*uint64(unsafe.Sizeof(*v2))))
-	} else if v1 != nil {
-		block, err = me.createStructBlock(parent, *v1, fmt.Sprintf("%s (V1)", label), subcontracts.RelativeAddress64(index*uint64(unsafe.Sizeof(*v1))))
-	} else {
-		return fmt.Errorf("unknown subcache structure")
-	}
-	if err != nil {
-		return err
-	}
-	if index == 0 {
-		err := addLink(headerBlock, "SubCacheArrayOffset", block, "points to")
-		if err != nil {
-			return err
-		}
-		err = addLink(headerBlock, "SubCacheArrayCount", block, "gives size")
-		if err != nil {
-			return err
-		}
-	}
-	return addLink(block, "CacheVmOffset", subCache, "points to")
-}
-
-func (me *parser) parsePatchInfo(frame *blockFrame, header subcontracts.DYLDCacheHeaderV3) error {
-	if header.PatchInfoAddr == 0 {
-		return nil
-	}
-
-	if _, v1 := header.V1(); v1 {
-		_, _, err := me.parseAndAddBlob(frame, "PatchInfoAddr", header.PatchInfoAddr, "PatchInfoSize", header.PatchInfoSize, &subcontracts.DYLDCachePatchInfoV1{}, "Patch Info (V1)")
-		if err != nil {
-			return err
-		}
-		// FIXME: should add all related structs but don't have a V1 cache
-		return nil
-	}
-
-	reader := header.PatchInfoAddr.GetReader(frame.cache, 0, me.slide)
-	patchHeader := subcontracts.DYLDCachePatchInfo{}
-	err := commons.Unpack(reader, &patchHeader)
-	if err != nil {
-		return err
-	}
-
-	var patchInfoV2 subcontracts.DYLDCachePatchInfoV2
-	var blob, patchHeaderBlock *contracts.MemoryBlock
-
-	switch patchHeader.PatchTableVersion {
-	case 3:
-		patchHeaderV3 := &subcontracts.DYLDCachePatchInfoV3{}
-		blob, patchHeaderBlock, err = me.parseAndAddBlob(frame, "PatchInfoAddr", header.PatchInfoAddr, "PatchInfoSize", header.PatchInfoSize, patchHeaderV3, "Patch Info (V3)")
-		if err != nil {
-			return err
-		}
-		patchInfoV2 = patchHeaderV3.DYLDCachePatchInfoV2
-
-		frame = frame.pushFrame(blob, patchHeaderBlock)
-		_, _, err = me.parseAndAddArray(frame, "GotClientsArrayAddr", patchHeaderV3.GotClientsArrayAddr, "GotClientsArrayCount", uint64(patchHeaderV3.GotClientsArrayCount), &subcontracts.DYLDCacheImageGotClientsV3{}, "GOT Clients")
-		if err != nil {
-			return err
-		}
-		_, _, err = me.parseAndAddArray(frame, "GotClientExportsArrayAddr", patchHeaderV3.GotClientExportsArrayAddr, "GotClientExportsArrayCount", uint64(patchHeaderV3.GotClientExportsArrayCount), &subcontracts.DYLDCachePatchableExportV3{}, "GOT Client Exports")
-		if err != nil {
-			return err
-		}
-		_, _, err = me.parseAndAddArray(frame, "GotLocationArrayAddr", patchHeaderV3.GotLocationArrayAddr, "GotLocationArrayCount", uint64(patchHeaderV3.GotLocationArrayCount), &subcontracts.DYLDCachePatchableLocationV3{}, "GOT Locations")
-		if err != nil {
-			return err
-		}
-
-		// TODO: add dyld_cache_patch_info and related
-	case 2:
-		blob, patchHeaderBlock, err = me.parseAndAddBlob(frame, "PatchInfoAddr", header.PatchInfoAddr, "PatchInfoSize", header.PatchInfoSize, &patchInfoV2, "Patch Info (V2)")
-		if err != nil {
-			return err
-		}
-	default:
-		return fmt.Errorf("unknown patch table version: %d", patchHeader.PatchTableVersion)
-	}
-
-	frame = frame.pushFrame(blob, patchHeaderBlock)
-
-	// FIXME: too noisy to add all the structs
-	// TODO: dig deeper still?
-	_, _, err = me.parseAndAddArray(frame, "PatchTableArrayAddr", patchInfoV2.PatchTableArrayAddr, "PatchTableArrayCount", uint64(patchInfoV2.PatchTableArrayCount), &subcontracts.DYLDCacheImagePatchesV2{}, "Patch Table")
-	if err != nil {
-		return err
-	}
-	_, _, err = me.parseAndAddArray(frame, "PatchImageExportsArrayAddr", patchInfoV2.PatchImageExportsArrayAddr, "PatchImageExportsArrayCount", uint64(patchInfoV2.PatchImageExportsArrayCount), &subcontracts.DYLDCacheImageExportV2{}, "Patch Image Exports")
-	if err != nil {
-		return err
-	}
-	_, _, err = me.parseAndAddArray(frame, "PatchClientsArrayAddr", patchInfoV2.PatchClientsArrayAddr, "PatchClientsArrayCount", uint64(patchInfoV2.PatchClientsArrayCount), &subcontracts.DYLDCacheImageClientsV2{}, "Patch Clients")
-	if err != nil {
-		return err
-	}
-	_, _, err = me.parseAndAddArray(frame, "PatchClientExportsArrayAddr", patchInfoV2.PatchClientExportsArrayAddr, "PatchClientExportsArrayCount", uint64(patchInfoV2.PatchClientExportsArrayCount), &subcontracts.DYLDCachePatchableExportV2{}, "Patch Client Exports")
-	if err != nil {
-		return err
-	}
-	// _, _, err = me.parseAndAddArray(frame, "PatchLocationArrayAddr", patchInfoV2.PatchLocationArrayAddr, "PatchLocationArrayCount", uint64(patchInfoV2.PatchLocationArrayCount), &subcontracts.DYLDCachePatchableLocationV2{}, "Patch Locations")
-	// if err != nil {
-	// 	return err
-	// }
-	return nil
 }
