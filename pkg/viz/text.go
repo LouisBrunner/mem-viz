@@ -74,9 +74,8 @@ func (me *outputter) Text(m contracts.MemoryBlock) error {
 	flushEach := func(upTo, lastAddress uintptr, depth int) {
 		lastUnused := lastAddress
 
-		// FIXME: improve meshing when hidden
-		if showLinks && showHiddenLinks {
-			for linksIndex < len(linksOrder) && upTo > linksOrder[linksIndex] {
+		for linksIndex < len(linksOrder) && upTo > linksOrder[linksIndex] {
+			if showLinks && showHiddenLinks {
 				addr := linksOrder[linksIndex]
 
 				flushUnused(lastUnused, addr, depth)
@@ -87,10 +86,9 @@ func (me *outputter) Text(m contracts.MemoryBlock) error {
 					originsText[i] = origin.String()
 				}
 				builder.Writef(formatLink, addr, "", "", strings.Join(originsText, ", "))
-				linksIndex += 1
-
 				lastUnused = addr
 			}
+			linksIndex += 1
 		}
 
 		flushUnused(lastUnused, upTo, depth)

@@ -183,9 +183,9 @@ type DYLDCacheAcceleratorDof struct {
 
 type DYLDCacheImageTextInfo struct {
 	UUID            [16]uint8
-	LoadAddress     uint64 `struc:"little"`
-	TextSegmentSize uint32 `struc:"little"`
-	PathOffset      uint32 `struc:"little"`
+	LoadAddress     UnslidAddress     `struc:"little"`
+	TextSegmentSize uint32            `struc:"little"`
+	PathOffset      RelativeAddress32 `struc:"little"`
 }
 
 type DYLDCacheSlideInfo struct {

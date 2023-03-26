@@ -29,6 +29,7 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 	}
 
 	frame := topFrame(cache, block, headerBlock)
+	var pathsBlock *contracts.MemoryBlock
 	_, _, err = me.parseAndAddArray(frame, "MappingOffset", header.MappingOffset, "MappingCount", uint64(header.MappingCount), &subcontracts.DYLDCacheMappingInfo{}, "Mappings")
 	if err != nil {
 		return nil, nil, err
@@ -39,7 +40,7 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 		if err != nil {
 			return nil, nil, err
 		}
-		err = me.parseImages(frame, imgs)
+		pathsBlock, err = me.parseImages(frame, imgs, pathsBlock)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -83,7 +84,11 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 			return nil, nil, err
 		}
 	}
-	_, _, err = me.parseAndAddArray(frame, "ImagesTextOffset", header.ImagesTextOffset, "ImagesTextCount", header.ImagesTextCount, &subcontracts.DYLDCacheImageTextInfo{}, "Images Text")
+	_, imgTexts, err := me.parseAndAddArray(frame, "ImagesTextOffset", header.ImagesTextOffset, "ImagesTextCount", header.ImagesTextCount, &subcontracts.DYLDCacheImageTextInfo{}, "Images Text")
+	if err != nil {
+		return nil, nil, err
+	}
+	pathsBlock, err = me.parseImageTexts(frame, imgTexts, pathsBlock)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -164,7 +169,7 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 	if err != nil {
 		return nil, nil, err
 	}
-	err = me.parseImages(frame, imgs)
+	_, err = me.parseImages(frame, imgs, pathsBlock)
 	if err != nil {
 		return nil, nil, err
 	}
