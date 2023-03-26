@@ -2,6 +2,8 @@ package parse
 
 import (
 	"fmt"
+	"reflect"
+	"runtime/debug"
 
 	"github.com/LouisBrunner/mem-viz/pkg/commons"
 	"github.com/LouisBrunner/mem-viz/pkg/contracts"
@@ -9,19 +11,12 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-func (me *parser) createCommonBlock(parent *contracts.MemoryBlock, label string, offset subcontracts.Address, size uint64) (*contracts.MemoryBlock, error) {
-	address := offset.AddBase(parent.Address).Calculate(me.slide)
-	if address < parent.Address {
-		return nil, fmt.Errorf("address of %q (%#016x) is before parent %q (%#016x)", label, address, parent.Name, parent.Address)
+func getDataValue(v interface{}) reflect.Value {
+	dat := reflect.ValueOf(v)
+	for dat.Kind() == reflect.Ptr {
+		dat = dat.Elem()
 	}
-	block := &contracts.MemoryBlock{
-		Name:         label,
-		Address:      address,
-		Size:         size,
-		ParentOffset: uint64(address - parent.Address),
-	}
-	addChild(parent, block)
-	return block, nil
+	return dat
 }
 
 func addChild(parent, child *contracts.MemoryBlock) {
@@ -56,7 +51,7 @@ func moveChild(parent, newParent *contracts.MemoryBlock, childIndex int) {
 	addChild(newParent, child)
 }
 
-func addLink(parent *contracts.MemoryBlock, parentValueName string, child *contracts.MemoryBlock, linkName string) error {
+func addLinkCommon(parent *contracts.MemoryBlock, parentValueName, linkName string, addr uintptr) error {
 	for i := range parent.Values {
 		if parent.Values[i].Name != parentValueName {
 			continue
@@ -64,12 +59,17 @@ func addLink(parent *contracts.MemoryBlock, parentValueName string, child *contr
 
 		parent.Values[i].Links = append(parent.Values[i].Links, &contracts.MemoryLink{
 			Name:          linkName,
-			TargetAddress: uint64(child.Address),
+			TargetAddress: uint64(addr),
 		})
 		return nil
 	}
 
+	debug.PrintStack()
 	return fmt.Errorf("could not find value %q in parent %+v", parentValueName, parent)
+}
+
+func addLink(parent *contracts.MemoryBlock, parentValueName string, child *contracts.MemoryBlock, linkName string) error {
+	return addLinkCommon(parent, parentValueName, linkName, child.Address)
 }
 
 func (me *parser) addLinkWithOffset(parent *contracts.MemoryBlock, parentValueName string, offset subcontracts.Address, linkName string) error {
@@ -77,19 +77,7 @@ func (me *parser) addLinkWithOffset(parent *contracts.MemoryBlock, parentValueNa
 		return nil
 	}
 
-	for i := range parent.Values {
-		if parent.Values[i].Name != parentValueName {
-			continue
-		}
-
-		parent.Values[i].Links = append(parent.Values[i].Links, &contracts.MemoryLink{
-			Name:          linkName,
-			TargetAddress: uint64(offset.AddBase(parent.Address).Calculate(me.slide)),
-		})
-		return nil
-	}
-
-	return fmt.Errorf("could not find value %q in parent %+v", parentValueName, parent)
+	return addLinkCommon(parent, parentValueName, linkName, offset.AddBase(parent.Address).Calculate(me.slide))
 }
 
 func formatValue(name string, value interface{}) string {

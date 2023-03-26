@@ -1,18 +1,26 @@
 package parse
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/LouisBrunner/mem-viz/pkg/contracts"
 	subcontracts "github.com/LouisBrunner/mem-viz/pkg/dsc-viz/contracts"
 )
 
-func getDataValue(v interface{}) reflect.Value {
-	dat := reflect.ValueOf(v)
-	for dat.Kind() == reflect.Ptr {
-		dat = dat.Elem()
+func (me *parser) createCommonBlock(parent *contracts.MemoryBlock, label string, offset subcontracts.Address, size uint64) (*contracts.MemoryBlock, error) {
+	address := offset.AddBase(parent.Address).Calculate(me.slide)
+	if address < parent.Address {
+		return nil, fmt.Errorf("address of %q (%#016x) is before parent %q (%#016x)", label, address, parent.Name, parent.Address)
 	}
-	return dat
+	block := &contracts.MemoryBlock{
+		Name:         label,
+		Address:      address,
+		Size:         size,
+		ParentOffset: uint64(address - parent.Address),
+	}
+	addChild(parent, block)
+	return block, nil
 }
 
 func (me *parser) createStructBlock(parent *contracts.MemoryBlock, data any, label string, offset subcontracts.Address) (*contracts.MemoryBlock, error) {
@@ -41,20 +49,20 @@ func (me *parser) createStructBlock(parent *contracts.MemoryBlock, data any, lab
 	return block, nil
 }
 
-func (me *parser) createBlobBlock(inside *contracts.MemoryBlock, from *contracts.MemoryBlock, fieldName string, offset subcontracts.Address, fieldSizeName string, size uint64, label string) (*contracts.MemoryBlock, error) {
+func (me *parser) createBlobBlock(frame *blockFrame, fieldName string, offset subcontracts.Address, fieldSizeName string, size uint64, label string) (*contracts.MemoryBlock, error) {
 	if offset.Invalid() || size == 0 {
 		return nil, nil
 	}
 
-	block, err := me.createCommonBlock(inside, label, offset, size)
+	block, err := me.createCommonBlock(frame.parent, label, offset, size)
 	if err != nil {
 		return nil, err
 	}
-	err = addLink(from, fieldName, block, "points to")
+	err = addLink(frame.parentStruct, fieldName, block, "points to")
 	if err != nil {
 		return nil, err
 	}
-	err = addLink(from, fieldSizeName, block, "gives size")
+	err = addLink(frame.parentStruct, fieldSizeName, block, "gives size")
 	if err != nil {
 		return nil, err
 	}

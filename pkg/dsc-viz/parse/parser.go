@@ -9,6 +9,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const thresholdsArrayTooBig = 3000
+
 type parser struct {
 	logger *logrus.Logger
 	slide  uint64

@@ -30,44 +30,45 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 		return nil, nil, err
 	}
 
-	_, err = me.parseAndAddArray(cache, block, headerBlock, "MappingOffset", header.MappingOffset, "MappingCount", uint64(header.MappingCount), &subcontracts.DYLDCacheMappingInfo{}, "Mappings")
+	frame := topFrame(cache, block, headerBlock)
+	_, _, err = me.parseAndAddArray(frame, "MappingOffset", header.MappingOffset, "MappingCount", uint64(header.MappingCount), &subcontracts.DYLDCacheMappingInfo{}, "Mappings")
 	if err != nil {
 		return nil, nil, err
 	}
 	// TODO: dig deeper in each mapping
 	if okV1 {
-		_, err = me.parseAndAddArray(cache, block, headerBlock, "ImagesOffset", v1.ImagesOffset, "ImagesCount", uint64(v1.ImagesCount), &subcontracts.DYLDCacheImageInfo{}, "Images")
+		_, _, err = me.parseAndAddArray(frame, "ImagesOffset", v1.ImagesOffset, "ImagesCount", uint64(v1.ImagesCount), &subcontracts.DYLDCacheImageInfo{}, "Images")
 		if err != nil {
 			return nil, nil, err
 		}
 		// TODO: dig deeper in each image
 	}
-	_, err = me.createBlobBlock(block, headerBlock, "CodeSignatureOffset", header.CodeSignatureOffset, "CodeSignatureSize", header.CodeSignatureSize, "Code Signature")
+	_, err = me.createBlobBlock(frame, "CodeSignatureOffset", header.CodeSignatureOffset, "CodeSignatureSize", header.CodeSignatureSize, "Code Signature")
 	if err != nil {
 		return nil, nil, err
 	}
 	if okV1 {
 		// FIXME: should use DYLDCacheSlideInfo1,2,3 but don't have a V1 cache
 		// https://github.com/apple-oss-distributions/dyld/blob/c8a445f88f9fc1713db34674e79b00e30723e79d/dyld/SharedCacheRuntime.cpp#L654
-		_, err = me.createBlobBlock(block, headerBlock, "SlideInfoOffset", v1.SlideInfoOffset, "SlideInfoSize", uint64(v1.SlideInfoSize), "Slide Info")
+		_, err = me.createBlobBlock(frame, "SlideInfoOffset", v1.SlideInfoOffset, "SlideInfoSize", uint64(v1.SlideInfoSize), "Slide Info")
 		if err != nil {
 			return nil, nil, err
 		}
 	}
 	// FIXME: should use DYLDCacheLocalSymbolsInfo but my cache doesn't have them
 	// https://github.com/apple-oss-distributions/dyld/blob/c8a445f88f9fc1713db34674e79b00e30723e79d/cache-builder/OptimizerLinkedit.cpp#L137
-	_, err = me.createBlobBlock(block, headerBlock, "LocalSymbolsOffset", header.LocalSymbolsOffset, "LocalSymbolsSize", header.LocalSymbolsSize, "Local Symbols")
+	_, err = me.createBlobBlock(frame, "LocalSymbolsOffset", header.LocalSymbolsOffset, "LocalSymbolsSize", header.LocalSymbolsSize, "Local Symbols")
 	if err != nil {
 		return nil, nil, err
 	}
 	// FIXME: is it worth unpacking each uint64 and list them? probably too noisy
-	_, err = me.createBlobBlock(block, headerBlock, "BranchPoolsOffset", header.BranchPoolsOffset, "BranchPoolsCount", uint64(header.BranchPoolsCount), "Branch Pools")
+	_, _, err = me.parseAndAddArray(frame, "BranchPoolsOffset", header.BranchPoolsOffset, "BranchPoolsCount", uint64(header.BranchPoolsCount), uint64(1), "Branch Pools")
 	if err != nil {
 		return nil, nil, err
 	}
 	if okV1 {
 		// FIXME: should it use DYLDCacheAcceleratorInfo? can't find reference to it in DYLD and don't have a V1 cache
-		_, err = me.createBlobBlock(block, headerBlock, "AccelerateInfoAddr", v1.AccelerateInfoAddr, "AccelerateInfoSize", uint64(v1.AccelerateInfoSize), "Accelerate Info")
+		_, err = me.createBlobBlock(frame, "AccelerateInfoAddr", v1.AccelerateInfoAddr, "AccelerateInfoSize", uint64(v1.AccelerateInfoSize), "Accelerate Info")
 		if err != nil {
 			return nil, nil, err
 		}
@@ -81,55 +82,55 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 			return nil, nil, err
 		}
 	}
-	_, err = me.parseAndAddArray(cache, block, headerBlock, "ImagesTextOffset", header.ImagesTextOffset, "ImagesTextCount", header.ImagesTextCount, &subcontracts.DYLDCacheImageTextInfo{}, "Images Text")
+	_, _, err = me.parseAndAddArray(frame, "ImagesTextOffset", header.ImagesTextOffset, "ImagesTextCount", header.ImagesTextCount, &subcontracts.DYLDCacheImageTextInfo{}, "Images Text")
 	if err != nil {
 		return nil, nil, err
 	}
 	// TODO: dig deeper in each image text
 	if okV1 {
 		// FIXME: should it use a struct? can't find reference to it in DYLD and don't have a V1 cache
-		_, err = me.createBlobBlock(block, headerBlock, "DylibsImageGroupAddr", v1.DylibsImageGroupAddr, "DylibsImageGroupSize", uint64(v1.DylibsImageGroupSize), "Dylibs ImageGroups")
+		_, err = me.createBlobBlock(frame, "DylibsImageGroupAddr", v1.DylibsImageGroupAddr, "DylibsImageGroupSize", uint64(v1.DylibsImageGroupSize), "Dylibs ImageGroups")
 		if err != nil {
 			return nil, nil, err
 		}
-		_, err = me.createBlobBlock(block, headerBlock, "OtherImageGroupAddr", v1.OtherImageGroupAddr, "OtherImageGroupSize", uint64(v1.OtherImageGroupSize), "Other ImageGroups")
+		_, err = me.createBlobBlock(frame, "OtherImageGroupAddr", v1.OtherImageGroupAddr, "OtherImageGroupSize", uint64(v1.OtherImageGroupSize), "Other ImageGroups")
 		if err != nil {
 			return nil, nil, err
 		}
 	} else {
-		err = me.parsePatchInfo(cache, block, headerBlock, header)
+		err = me.parsePatchInfo(frame, header)
 		if err != nil {
 			return nil, nil, err
 		}
 	}
-	_, err = me.createBlobBlock(block, headerBlock, "ProgClosuresAddr", header.ProgClosuresAddr, "ProgClosuresSize", header.ProgClosuresSize, "Program Closures")
+	_, err = me.createBlobBlock(frame, "ProgClosuresAddr", header.ProgClosuresAddr, "ProgClosuresSize", header.ProgClosuresSize, "Program Closures")
 	if err != nil {
 		return nil, nil, err
 	}
-	_, err = me.createBlobBlock(block, headerBlock, "ProgClosuresTrieAddr", header.ProgClosuresTrieAddr, "ProgClosuresTrieSize", header.ProgClosuresTrieSize, "Program Closures (Trie)")
+	_, err = me.createBlobBlock(frame, "ProgClosuresTrieAddr", header.ProgClosuresTrieAddr, "ProgClosuresTrieSize", header.ProgClosuresTrieSize, "Program Closures (Trie)")
 	if err != nil {
 		return nil, nil, err
 	}
-	_, err = me.createBlobBlock(block, headerBlock, "DylibsImageArrayAddr", header.DylibsImageArrayAddr, "DylibsImageArraySize", header.DylibsImageArraySize, "Dylibs ImageArrays")
+	_, err = me.createBlobBlock(frame, "DylibsImageArrayAddr", header.DylibsImageArrayAddr, "DylibsImageArraySize", header.DylibsImageArraySize, "Dylibs ImageArrays")
 	if err != nil {
 		return nil, nil, err
 	}
-	_, err = me.createBlobBlock(block, headerBlock, "DylibsTrieAddr", header.DylibsTrieAddr, "DylibsTrieSize", header.DylibsTrieSize, "Dylibs ImageArrays (Trie)")
+	_, err = me.createBlobBlock(frame, "DylibsTrieAddr", header.DylibsTrieAddr, "DylibsTrieSize", header.DylibsTrieSize, "Dylibs ImageArrays (Trie)")
 	if err != nil {
 		return nil, nil, err
 	}
-	_, err = me.createBlobBlock(block, headerBlock, "OtherImageArrayAddr", header.OtherImageArrayAddr, "OtherImageArraySize", header.OtherImageArraySize, "Other ImageArrays")
+	_, err = me.createBlobBlock(frame, "OtherImageArrayAddr", header.OtherImageArrayAddr, "OtherImageArraySize", header.OtherImageArraySize, "Other ImageArrays")
 	if err != nil {
 		return nil, nil, err
 	}
-	_, err = me.createBlobBlock(block, headerBlock, "OtherTrieAddr", header.OtherTrieAddr, "OtherTrieSize", header.OtherTrieSize, "Other ImageArrays (Trie)")
+	_, err = me.createBlobBlock(frame, "OtherTrieAddr", header.OtherTrieAddr, "OtherTrieSize", header.OtherTrieSize, "Other ImageArrays (Trie)")
 	if err != nil {
 		return nil, nil, err
 	}
 	if okV1 {
 		return block, headerBlock, nil
 	}
-	_, err = me.parseAndAddArray(cache, block, headerBlock, "MappingWithSlideOffset", header.MappingWithSlideOffset, "MappingWithSlideCount", uint64(header.MappingWithSlideCount), &subcontracts.DYLDCacheMappingAndSlideInfo{}, "Mappings With Slide")
+	_, _, err = me.parseAndAddArray(frame, "MappingWithSlideOffset", header.MappingWithSlideOffset, "MappingWithSlideCount", uint64(header.MappingWithSlideCount), &subcontracts.DYLDCacheMappingAndSlideInfo{}, "Mappings With Slide")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -138,27 +139,27 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 	if err != nil {
 		return nil, nil, err
 	}
-	_, err = me.createBlobBlock(block, headerBlock, "ProgramsPblSetPoolAddr", header.ProgramsPblSetPoolAddr, "ProgramsPblSetPoolSize", header.ProgramsPblSetPoolSize, "PrebuiltLoaderSet for each program")
+	_, err = me.createBlobBlock(frame, "ProgramsPblSetPoolAddr", header.ProgramsPblSetPoolAddr, "ProgramsPblSetPoolSize", header.ProgramsPblSetPoolSize, "PrebuiltLoaderSet for each program")
 	if err != nil {
 		return nil, nil, err
 	}
-	_, err = me.createBlobBlock(block, headerBlock, "ProgramTrieAddr", header.ProgramTrieAddr, "ProgramTrieSize", uint64(header.ProgramTrieSize), "PrebuiltLoaderSet for each program (Trie)")
+	_, err = me.createBlobBlock(frame, "ProgramTrieAddr", header.ProgramTrieAddr, "ProgramTrieSize", uint64(header.ProgramTrieSize), "PrebuiltLoaderSet for each program (Trie)")
 	if err != nil {
 		return nil, nil, err
 	}
-	_, err = me.createBlobBlock(block, headerBlock, "SwiftOptsOffset", header.SwiftOptsOffset, "SwiftOptsSize", header.SwiftOptsSize, "Swift Optimizations Header")
+	_, err = me.createBlobBlock(frame, "SwiftOptsOffset", header.SwiftOptsOffset, "SwiftOptsSize", header.SwiftOptsSize, "Swift Optimizations Header")
 	if err != nil {
 		return nil, nil, err
 	}
-	_, err = me.createBlobBlock(block, headerBlock, "RosettaReadOnlyAddr", header.RosettaReadOnlyAddr, "RosettaReadOnlySize", header.RosettaReadOnlySize, "Rosetta Read-Only Region")
+	_, err = me.createBlobBlock(frame, "RosettaReadOnlyAddr", header.RosettaReadOnlyAddr, "RosettaReadOnlySize", header.RosettaReadOnlySize, "Rosetta Read-Only Region")
 	if err != nil {
 		return nil, nil, err
 	}
-	_, err = me.createBlobBlock(block, headerBlock, "RosettaReadWriteAddr", header.RosettaReadWriteAddr, "RosettaReadWriteSize", header.RosettaReadWriteSize, "Rosetta Read-Write Region")
+	_, err = me.createBlobBlock(frame, "RosettaReadWriteAddr", header.RosettaReadWriteAddr, "RosettaReadWriteSize", header.RosettaReadWriteSize, "Rosetta Read-Write Region")
 	if err != nil {
 		return nil, nil, err
 	}
-	_, err = me.parseAndAddArray(cache, block, headerBlock, "ImagesOffset", header.ImagesOffset, "ImagesCount", uint64(header.ImagesCount), &subcontracts.DYLDCacheImageInfo{}, "Images")
+	_, _, err = me.parseAndAddArray(frame, "ImagesOffset", header.ImagesOffset, "ImagesCount", uint64(header.ImagesCount), &subcontracts.DYLDCacheImageInfo{}, "Images")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -166,16 +167,16 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 	if okV2 {
 		return block, headerBlock, nil
 	}
-	_, err = me.createBlobBlock(block, headerBlock, "ObjcOptsOffset", header.ObjcOptsOffset, "ObjcOptsSize", header.ObjcOptsSize, "Objective-C Optimizations Header")
+	_, err = me.createBlobBlock(frame, "ObjcOptsOffset", header.ObjcOptsOffset, "ObjcOptsSize", header.ObjcOptsSize, "Objective-C Optimizations Header")
 	if err != nil {
 		return nil, nil, err
 	}
-	_, err = me.createBlobBlock(block, headerBlock, "CacheAtlasOffset", header.CacheAtlasOffset, "CacheAtlasSize", header.CacheAtlasSize, "Cache Atlas")
+	_, err = me.createBlobBlock(frame, "CacheAtlasOffset", header.CacheAtlasOffset, "CacheAtlasSize", header.CacheAtlasSize, "Cache Atlas")
 	if err != nil {
 		return nil, nil, err
 	}
 	dcdd := subcontracts.DYLDCacheDynamicDataHeader{}
-	dcddBlock, dcddHeaderBlock, err := me.parseAndAddBlob(cache, block, headerBlock, "DynamicDataOffset", header.DynamicDataOffset, "DynamicDataMaxSize", header.DynamicDataMaxSize, &dcdd, "DYLD Cache Dynamic Data")
+	dcddBlock, dcddHeaderBlock, err := me.parseAndAddBlob(frame, "DynamicDataOffset", header.DynamicDataOffset, "DynamicDataMaxSize", header.DynamicDataMaxSize, &dcdd, "DYLD Cache Dynamic Data")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -215,13 +216,13 @@ func (me *parser) addSubCacheEntry(parent, headerBlock, subCache *contracts.Memo
 	return addLink(block, "CacheVmOffset", subCache, "points to")
 }
 
-func (me *parser) parsePatchInfo(cache subcontracts.Cache, block, headerBlock *contracts.MemoryBlock, header subcontracts.DYLDCacheHeaderV3) error {
+func (me *parser) parsePatchInfo(frame *blockFrame, header subcontracts.DYLDCacheHeaderV3) error {
 	if header.PatchInfoAddr == 0 {
 		return nil
 	}
 
 	if _, v1 := header.V1(); v1 {
-		_, _, err := me.parseAndAddBlob(cache, block, headerBlock, "PatchInfoAddr", header.PatchInfoAddr, "PatchInfoSize", header.PatchInfoSize, &subcontracts.DYLDCachePatchInfoV1{}, "Patch Info (V1)")
+		_, _, err := me.parseAndAddBlob(frame, "PatchInfoAddr", header.PatchInfoAddr, "PatchInfoSize", header.PatchInfoSize, &subcontracts.DYLDCachePatchInfoV1{}, "Patch Info (V1)")
 		if err != nil {
 			return err
 		}
@@ -229,7 +230,7 @@ func (me *parser) parsePatchInfo(cache subcontracts.Cache, block, headerBlock *c
 		return nil
 	}
 
-	reader := header.PatchInfoAddr.GetReader(cache, 0, me.slide)
+	reader := header.PatchInfoAddr.GetReader(frame.cache, 0, me.slide)
 	patchHeader := subcontracts.DYLDCachePatchInfo{}
 	err := commons.Unpack(reader, &patchHeader)
 	if err != nil {
@@ -242,14 +243,14 @@ func (me *parser) parsePatchInfo(cache subcontracts.Cache, block, headerBlock *c
 	switch patchHeader.PatchTableVersion {
 	case 3:
 		patchHeaderV3 := &subcontracts.DYLDCachePatchInfoV3{}
-		blob, patchHeaderBlock, err = me.parseAndAddBlob(cache, block, headerBlock, "PatchInfoAddr", header.PatchInfoAddr, "PatchInfoSize", header.PatchInfoSize, patchHeaderV3, "Patch Info (V3)")
+		blob, patchHeaderBlock, err = me.parseAndAddBlob(frame, "PatchInfoAddr", header.PatchInfoAddr, "PatchInfoSize", header.PatchInfoSize, patchHeaderV3, "Patch Info (V3)")
 		if err != nil {
 			return err
 		}
 		patchInfoV2 = patchHeaderV3.DYLDCachePatchInfoV2
 		// TODO: add dyld_cache_patch_info and related
 	case 2:
-		blob, patchHeaderBlock, err = me.parseAndAddBlob(cache, block, headerBlock, "PatchInfoAddr", header.PatchInfoAddr, "PatchInfoSize", header.PatchInfoSize, &patchInfoV2, "Patch Info (V2)")
+		blob, patchHeaderBlock, err = me.parseAndAddBlob(frame, "PatchInfoAddr", header.PatchInfoAddr, "PatchInfoSize", header.PatchInfoSize, &patchInfoV2, "Patch Info (V2)")
 		if err != nil {
 			return err
 		}
@@ -257,32 +258,29 @@ func (me *parser) parsePatchInfo(cache subcontracts.Cache, block, headerBlock *c
 		return fmt.Errorf("unknown patch table version: %d", patchHeader.PatchTableVersion)
 	}
 
-	// FIXME: tmep
-	blob = patchHeaderBlock
-	patchHeaderBlock = blob
+	frame = frame.pushFrame(blob, patchHeaderBlock)
 
-	// _, err = me.parseAndAddArray(cache, blob, patchHeaderBlock, "PatchTableArrayAddr", patchInfoV2.PatchTableArrayAddr, "PatchTableArrayCount", uint64(patchInfoV2.PatchTableArrayCount), subcontracts.DYLDCacheImagePatchesV2{}, "Patch Table")
-	// if err != nil {
-	// 	return err
-	// }
-	// // TODO: dig deeper
-	// _, err = me.parseAndAddArray(cache, blob, patchHeaderBlock, "PatchImageExportsArrayAddr", patchInfoV2.PatchImageExportsArrayAddr, "PatchImageExportsArrayCount", uint64(patchInfoV2.PatchImageExportsArrayCount), subcontracts.DYLDCacheImageExportV2{}, "Patch Image Exports")
-	// if err != nil {
-	// 	return err
-	// }
-	// // TODO: dig deeper
-	// _, err = me.parseAndAddArray(cache, blob, patchHeaderBlock, "PatchClientsArrayAddr", patchInfoV2.PatchClientsArrayAddr, "PatchClientsArrayCount", uint64(patchInfoV2.PatchClientsArrayCount), subcontracts.DYLDCacheImageClientsV2{}, "Patch Clients")
-	// if err != nil {
-	// 	return err
-	// }
-	// // TODO: dig deeper
-	// _, err = me.createBlobBlock(blob, patchHeaderBlock, "PatchClientExportsArrayAddr", patchInfoV2.PatchClientExportsArrayAddr, "PatchClientExportsArrayCount", uint64(patchInfoV2.PatchClientExportsArrayCount), "Patch Client Exports")
-	// if err != nil {
-	// 	return err
-	// }
-	// _, err = me.createBlobBlock(blob, patchHeaderBlock, "PatchLocationArrayAddr", patchInfoV2.PatchLocationArrayAddr, "PatchLocationArrayCount", uint64(patchInfoV2.PatchLocationArrayCount), "Patch Locations")
-	// if err != nil {
-	// 	return err
-	// }
+	// FIXME: too noisy to add all the structs
+	// TODO: dig deeper still?
+	_, _, err = me.parseAndAddArray(frame, "PatchTableArrayAddr", patchInfoV2.PatchTableArrayAddr, "PatchTableArrayCount", uint64(patchInfoV2.PatchTableArrayCount), &subcontracts.DYLDCacheImagePatchesV2{}, "Patch Table")
+	if err != nil {
+		return err
+	}
+	_, _, err = me.parseAndAddArray(frame, "PatchImageExportsArrayAddr", patchInfoV2.PatchImageExportsArrayAddr, "PatchImageExportsArrayCount", uint64(patchInfoV2.PatchImageExportsArrayCount), &subcontracts.DYLDCacheImageExportV2{}, "Patch Image Exports")
+	if err != nil {
+		return err
+	}
+	_, _, err = me.parseAndAddArray(frame, "PatchClientsArrayAddr", patchInfoV2.PatchClientsArrayAddr, "PatchClientsArrayCount", uint64(patchInfoV2.PatchClientsArrayCount), &subcontracts.DYLDCacheImageClientsV2{}, "Patch Clients")
+	if err != nil {
+		return err
+	}
+	_, err = me.createBlobBlock(frame, "PatchClientExportsArrayAddr", patchInfoV2.PatchClientExportsArrayAddr, "PatchClientExportsArrayCount", uint64(patchInfoV2.PatchClientExportsArrayCount), "Patch Client Exports")
+	if err != nil {
+		return err
+	}
+	_, err = me.createBlobBlock(frame, "PatchLocationArrayAddr", patchInfoV2.PatchLocationArrayAddr, "PatchLocationArrayCount", uint64(patchInfoV2.PatchLocationArrayCount), "Patch Locations")
+	if err != nil {
+		return err
+	}
 	return nil
 }
