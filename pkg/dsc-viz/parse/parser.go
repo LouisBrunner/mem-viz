@@ -9,34 +9,41 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var gSlide uint64
+type parser struct {
+	logger *logrus.Logger
+	slide  uint64
+}
 
 func Parse(logger *logrus.Logger, fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, error) {
+	mainHeader := fetcher.Header()
+	slide, err := calculateSlide(fetcher, mainHeader)
+	if err != nil {
+		return nil, err
+	}
+	logger.Debugf("Slide: %#016x", slide)
+
+	parser := parser{
+		logger: logger,
+		slide:  slide,
+	}
+	return parser.parse(fetcher)
+}
+
+func (me *parser) parse(fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, error) {
 	root := &contracts.MemoryBlock{
 		Name:    "DSC",
 		Address: fetcher.BaseAddress(),
 	}
 
 	mainHeader := fetcher.Header()
-	slide, err := calculateSlide(fetcher, mainHeader)
-	if err != nil {
-		return nil, err
-	}
-	logger.Debugf("Slide: %#16x", slide)
-
-	// TODO: HORRID!!!!!!!!!!!! (but it works)
-	// find a way to pass the slide to the other functions without adding it on EVERY FUNCTION
-	// context.Context? could add "current parent", "current header" etc
-	gSlide = slide
-
-	mainBlock, headerBlock, err := addCache(root, fetcher, "Main Header", 0)
+	mainBlock, headerBlock, err := me.addCache(root, fetcher, "Main Header", subcontracts.RelativeAddress32(0))
 	if err != nil {
 		return nil, err
 	}
 
 	var subCacheEntries *contracts.MemoryBlock
 	if l := len(fetcher.SubCaches()); l > 0 {
-		subCacheEntries, err = createEmptyBlock(mainBlock, fmt.Sprintf("Subcache Entries (%d)", l), uint64(mainHeader.SubCacheArrayOffset))
+		subCacheEntries, err = me.createEmptyBlock(mainBlock, fmt.Sprintf("Subcache Entries (%d)", l), mainHeader.SubCacheArrayOffset)
 		if err != nil {
 			return nil, err
 		}
@@ -47,11 +54,11 @@ func Parse(logger *logrus.Logger, fetcher subcontracts.Fetcher) (*contracts.Memo
 		if v2 != nil {
 			name = commons.FromCString(v2.FileSuffix[:])
 		}
-		_, subHeaderBlock, err := addCache(root, cache, fmt.Sprintf("Sub Cache %s", name), uint64(cache.BaseAddress()))
+		_, subHeaderBlock, err := me.addCache(root, cache, fmt.Sprintf("Sub Cache %s", name), subcontracts.RelativeAddress64(cache.BaseAddress()))
 		if err != nil {
 			return nil, err
 		}
-		err = addSubCacheEntry(subCacheEntries, headerBlock, subHeaderBlock, fetcher.Header(), v2, v1, uint64(i))
+		err = me.addSubCacheEntry(subCacheEntries, headerBlock, subHeaderBlock, fetcher.Header(), v2, v1, uint64(i))
 		if err != nil {
 			return nil, err
 		}
@@ -84,7 +91,7 @@ func rebalance(root *contracts.MemoryBlock) {
 }
 
 func calculateSlide(cache subcontracts.Cache, header subcontracts.DYLDCacheHeaderV3) (uint64, error) {
-	reader := getReaderAtOffset(cache, uint64(header.MappingOffset), 0)
+	reader := header.MappingOffset.GetReader(cache, 0, 0)
 	mapping := &subcontracts.DYLDCacheMappingInfo{}
 	err := commons.Unpack(reader, mapping)
 	if err != nil {

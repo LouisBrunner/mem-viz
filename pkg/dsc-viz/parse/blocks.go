@@ -2,28 +2,28 @@ package parse
 
 import (
 	"reflect"
-	"unsafe"
 
 	"github.com/LouisBrunner/mem-viz/pkg/contracts"
+	subcontracts "github.com/LouisBrunner/mem-viz/pkg/dsc-viz/contracts"
 )
 
-func createStructBlock[T any, A addressOrOffset](parent *contracts.MemoryBlock, data T, label string, offset A) (*contracts.MemoryBlock, error) {
-	empty := interface{}(data) == nil
-	size := uint64(0)
-	if !empty {
-		size = uint64(unsafe.Sizeof(data))
+func getDataValue(v interface{}) reflect.Value {
+	dat := reflect.ValueOf(v)
+	for dat.Kind() == reflect.Ptr {
+		dat = dat.Elem()
 	}
-	block, err := createCommonBlock(parent, label, offset, size)
+	return dat
+}
+
+func (me *parser) createStructBlock(parent *contracts.MemoryBlock, data any, label string, offset subcontracts.Address) (*contracts.MemoryBlock, error) {
+	val := getDataValue(data)
+	typ := val.Type()
+
+	block, err := me.createCommonBlock(parent, label, offset, uint64(typ.Size()))
 	if err != nil {
 		return nil, err
 	}
 
-	if empty {
-		return block, nil
-	}
-
-	val := reflect.ValueOf(data)
-	typ := reflect.TypeOf(data)
 	for _, field := range reflect.VisibleFields(typ) {
 		fieldType := field.Type
 		if fieldType.Kind() == reflect.Struct && field.Anonymous {
@@ -41,12 +41,12 @@ func createStructBlock[T any, A addressOrOffset](parent *contracts.MemoryBlock, 
 	return block, nil
 }
 
-func createBlobBlock[A addressOrOffset](inside *contracts.MemoryBlock, from *contracts.MemoryBlock, fieldName string, offset A, fieldSizeName string, size uint64, label string) (*contracts.MemoryBlock, error) {
-	if offset == 0 || size == 0 {
+func (me *parser) createBlobBlock(inside *contracts.MemoryBlock, from *contracts.MemoryBlock, fieldName string, offset subcontracts.Address, fieldSizeName string, size uint64, label string) (*contracts.MemoryBlock, error) {
+	if offset.Invalid() || size == 0 {
 		return nil, nil
 	}
 
-	block, err := createCommonBlock(inside, label, offset, size)
+	block, err := me.createCommonBlock(inside, label, offset, size)
 	if err != nil {
 		return nil, err
 	}
@@ -61,6 +61,6 @@ func createBlobBlock[A addressOrOffset](inside *contracts.MemoryBlock, from *con
 	return block, nil
 }
 
-func createEmptyBlock[A addressOrOffset](parent *contracts.MemoryBlock, label string, offset A) (*contracts.MemoryBlock, error) {
-	return createCommonBlock(parent, label, offset, 0)
+func (me *parser) createEmptyBlock(parent *contracts.MemoryBlock, label string, offset subcontracts.Address) (*contracts.MemoryBlock, error) {
+	return me.createCommonBlock(parent, label, offset, 0)
 }

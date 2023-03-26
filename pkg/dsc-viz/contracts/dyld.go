@@ -2,6 +2,7 @@ package contracts
 
 import (
 	"fmt"
+	"io"
 	"unsafe"
 )
 
@@ -18,7 +19,66 @@ const (
 	MAGIC_arm64_32       = "dyld_v1arm64_32"
 )
 
+type Address interface {
+	AddBase(base uintptr) Address
+	Calculate(slide uint64) uintptr
+	GetReader(cache Cache, offset, slide uint64) io.Reader
+	Invalid() bool
+}
+
+type RelativeAddress32 uint32
+
+func (me RelativeAddress32) AddBase(base uintptr) Address {
+	return RelativeAddress64(uint64(base) + uint64(me))
+}
+
+func (me RelativeAddress32) Calculate(slide uint64) uintptr {
+	return uintptr(me)
+}
+
+func (me RelativeAddress32) GetReader(cache Cache, offset, slide uint64) io.Reader {
+	return cache.ReaderAtOffset(int64(me) + int64(offset))
+}
+
+func (me RelativeAddress32) Invalid() bool {
+	return me == 0
+}
+
+type RelativeAddress64 uint64
+
+func (me RelativeAddress64) AddBase(base uintptr) Address {
+	return RelativeAddress64(uint64(base) + uint64(me))
+}
+
+func (me RelativeAddress64) Calculate(slide uint64) uintptr {
+	return uintptr(me)
+}
+
+func (me RelativeAddress64) GetReader(cache Cache, offset, slide uint64) io.Reader {
+	return cache.ReaderAtOffset(int64(me) + int64(offset))
+}
+
+func (me RelativeAddress64) Invalid() bool {
+	return me == 0
+}
+
 type UnslidAddress uint64
+
+func (me UnslidAddress) AddBase(base uintptr) Address {
+	return me
+}
+
+func (me UnslidAddress) Calculate(slide uint64) uintptr {
+	return uintptr(me) + uintptr(slide)
+}
+
+func (me UnslidAddress) GetReader(cache Cache, offset, slide uint64) io.Reader {
+	return cache.ReaderAbsolute(uint64(me) + offset + slide)
+}
+
+func (me UnslidAddress) Invalid() bool {
+	return me == 0
+}
 
 // From Apple's `dyld-*/cache-builder/dyld_cache_format.h`
 
@@ -294,24 +354,24 @@ const (
 
 type DYLDCacheHeaderV1 struct {
 	Magic                [16]byte                  // e.g. "dyld_v0    i386"
-	MappingOffset        uint32                    `struc:"little"` // file offset to first dyld_cache_mapping_info
+	MappingOffset        RelativeAddress32         `struc:"little"` // file offset to first dyld_cache_mapping_info
 	MappingCount         uint32                    `struc:"little"` // number of dyld_cache_mapping_info entries
-	ImagesOffset         uint32                    `struc:"little"` // file offset to first dyld_cache_image_info
+	ImagesOffset         RelativeAddress32         `struc:"little"` // file offset to first dyld_cache_image_info
 	ImagesCount          uint32                    `struc:"little"` // number of dyld_cache_image_info entries
 	DyldBaseAddress      uint64                    `struc:"little"` // base address of dyld when cache was built
 	CodeSignatureOffset  uint64                    `struc:"little"` // file offset of code signature blob
 	CodeSignatureSize    uint64                    `struc:"little"` // size of code signature blob (zero means to end of file)
-	SlideInfoOffset      uint64                    `struc:"little"` // file offset of kernel slid info
+	SlideInfoOffset      RelativeAddress64         `struc:"little"` // file offset of kernel slid info
 	SlideInfoSize        uint64                    `struc:"little"` // size of kernel slid info
-	LocalSymbolsOffset   uint64                    `struc:"little"` // file offset of where local symbols are stored
+	LocalSymbolsOffset   RelativeAddress64         `struc:"little"` // file offset of where local symbols are stored
 	LocalSymbolsSize     uint64                    `struc:"little"` // size of local symbols information
 	UUID                 [16]uint8                 // unique value for each shared cache file
 	CacheType            uint64                    `struc:"little"` // 0 for development, 1 for production
-	BranchPoolsOffset    uint32                    `struc:"little"` // file offset to table of uint64_t pool addresses
+	BranchPoolsOffset    RelativeAddress32         `struc:"little"` // file offset to table of uint64_t pool addresses
 	BranchPoolsCount     uint32                    `struc:"little"` // number of uint64_t entries
 	AccelerateInfoAddr   UnslidAddress             `struc:"little"` // (unslid) address of optimization info
 	AccelerateInfoSize   uint64                    `struc:"little"` // size of optimization info
-	ImagesTextOffset     uint64                    `struc:"little"` // file offset to first dyld_cache_image_text_info
+	ImagesTextOffset     RelativeAddress64         `struc:"little"` // file offset to first dyld_cache_image_text_info
 	ImagesTextCount      uint64                    `struc:"little"` // number of dyld_cache_image_text_info entries
 	DylibsImageGroupAddr UnslidAddress             `struc:"little"` // (unslid) address of ImageGroup for dylibs in this cache
 	DylibsImageGroupSize uint64                    `struc:"little"` // size of ImageGroup for dylibs in this cache
@@ -364,24 +424,24 @@ func (me DYLDCacheHeaderV1BitField) String() string {
 
 type DYLDCacheHeaderV2 struct {
 	Magic                     [16]byte                  // e.g. "dyld_v0    i386"
-	MappingOffset             uint32                    `struc:"little"` // file offset to first dyld_cache_mapping_info
+	MappingOffset             RelativeAddress32         `struc:"little"` // file offset to first dyld_cache_mapping_info
 	MappingCount              uint32                    `struc:"little"` // number of dyld_cache_mapping_info entries
 	ImagesOffsetOld           uint32                    `struc:"little"` // UNUSED: moved to imagesOffset to prevent older dsc_extarctors from crashing
 	ImagesCountOld            uint32                    `struc:"little"` // UNUSED: moved to imagesCount to prevent older dsc_extarctors from crashing
 	DyldBaseAddress           uint64                    `struc:"little"` // base address of dyld when cache was built
-	CodeSignatureOffset       uint64                    `struc:"little"` // file offset of code signature blob
+	CodeSignatureOffset       RelativeAddress64         `struc:"little"` // file offset of code signature blob
 	CodeSignatureSize         uint64                    `struc:"little"` // size of code signature blob (zero means to end of file)
 	SlideInfoOffsetUnused     uint64                    `struc:"little"` // unused.  Used to be file offset of kernel slid info
 	SlideInfoSizeUnused       uint64                    `struc:"little"` // unused.  Used to be size of kernel slid info
-	LocalSymbolsOffset        uint64                    `struc:"little"` // file offset of where local symbols are stored
+	LocalSymbolsOffset        RelativeAddress64         `struc:"little"` // file offset of where local symbols are stored
 	LocalSymbolsSize          uint64                    `struc:"little"` // size of local symbols information
 	UUID                      [16]uint8                 // unique value for each shared cache file
 	CacheType                 uint64                    `struc:"little"` // 0 for development, 1 for production, 2 for multi-cache
-	BranchPoolsOffset         uint32                    `struc:"little"` // file offset to table of uint64_t pool addresses
+	BranchPoolsOffset         RelativeAddress32         `struc:"little"` // file offset to table of uint64_t pool addresses
 	BranchPoolsCount          uint32                    `struc:"little"` // number of uint64_t entries
 	DyldInCacheMh             UnslidAddress             `struc:"little"` // (unslid) address of mach_header of dyld in cache
 	DyldInCacheEntry          UnslidAddress             `struc:"little"` // (unslid) address of entry point (_dyld_start) of dyld in cache
-	ImagesTextOffset          uint64                    `struc:"little"` // file offset to first dyld_cache_image_text_info
+	ImagesTextOffset          RelativeAddress64         `struc:"little"` // file offset to first dyld_cache_image_text_info
 	ImagesTextCount           uint64                    `struc:"little"` // number of dyld_cache_image_text_info entries
 	PatchInfoAddr             UnslidAddress             `struc:"little"` // (unslid) address of dyld_cache_patch_info
 	PatchInfoSize             uint64                    `struc:"little"` // Size of all of the patch information pointed to via the dyld_cache_patch_info
@@ -405,35 +465,35 @@ type DYLDCacheHeaderV2 struct {
 	OtherTrieAddr             UnslidAddress             `struc:"little"` // (unslid) address of trie of indexes of all dylibs and bundles with dlopen closures
 	OtherTrieSize             uint64                    `struc:"little"` // size of trie of dylibs and bundles with dlopen closures
 	// End of V1 (not using an embedded struct to avoid losing the name and to use the right bitfield)
-	MappingWithSlideOffset        uint32        `struc:"little"` // file offset to first dyld_cache_mapping_and_slide_info
-	MappingWithSlideCount         uint32        `struc:"little"` // number of dyld_cache_mapping_and_slide_info entries
-	DylibsPblStateArrayAddrUnused uint64        `struc:"little"` // unused
-	DylibsPblSetAddr              UnslidAddress `struc:"little"` // (unslid) address of PrebuiltLoaderSet of all cached dylibs
-	ProgramsPblSetPoolAddr        UnslidAddress `struc:"little"` // (unslid) address of pool of PrebuiltLoaderSet for each program
-	ProgramsPblSetPoolSize        uint64        `struc:"little"` // size of pool of PrebuiltLoaderSet for each program
-	ProgramTrieAddr               UnslidAddress `struc:"little"` // (unslid) address of trie mapping program path to PrebuiltLoaderSet
-	ProgramTrieSize               uint32        `struc:"little"`
-	OsVersion                     uint32        `struc:"little"` // OS Version of dylibs in this cache for the main platform
-	AltPlatform                   uint32        `struc:"little"` // e.g. iOSMac on macOS
-	AltOsVersion                  uint32        `struc:"little"` // e.g. 14.0 for iOSMac
-	SwiftOptsOffset               uint64        `struc:"little"` // VM offset from cache_header* to Swift optimizations header
-	SwiftOptsSize                 uint64        `struc:"little"` // size of Swift optimizations header
-	SubCacheArrayOffset           uint32        `struc:"little"` // file offset to first dyld_subcache_entry
-	SubCacheArrayCount            uint32        `struc:"little"` // number of subCache entries
-	SymbolFileUuid                [16]uint8     // unique value for the shared cache file containing unmapped local symbols
-	RosettaReadOnlyAddr           UnslidAddress `struc:"little"` // (unslid) address of the start of where Rosetta can add read-only/executable data
-	RosettaReadOnlySize           uint64        `struc:"little"` // maximum size of the Rosetta read-only/executable region
-	RosettaReadWriteAddr          UnslidAddress `struc:"little"` // (unslid) address of the start of where Rosetta can add read-write data
-	RosettaReadWriteSize          uint64        `struc:"little"` // maximum size of the Rosetta read-write region
-	ImagesOffset                  uint32        `struc:"little"` // file offset to first dyld_cache_image_info
-	ImagesCount                   uint32        `struc:"little"` // number of dyld_cache_image_info entries
+	MappingWithSlideOffset        RelativeAddress32 `struc:"little"` // file offset to first dyld_cache_mapping_and_slide_info
+	MappingWithSlideCount         uint32            `struc:"little"` // number of dyld_cache_mapping_and_slide_info entries
+	DylibsPblStateArrayAddrUnused uint64            `struc:"little"` // unused
+	DylibsPblSetAddr              UnslidAddress     `struc:"little"` // (unslid) address of PrebuiltLoaderSet of all cached dylibs
+	ProgramsPblSetPoolAddr        UnslidAddress     `struc:"little"` // (unslid) address of pool of PrebuiltLoaderSet for each program
+	ProgramsPblSetPoolSize        uint64            `struc:"little"` // size of pool of PrebuiltLoaderSet for each program
+	ProgramTrieAddr               UnslidAddress     `struc:"little"` // (unslid) address of trie mapping program path to PrebuiltLoaderSet
+	ProgramTrieSize               uint32            `struc:"little"`
+	OsVersion                     uint32            `struc:"little"` // OS Version of dylibs in this cache for the main platform
+	AltPlatform                   uint32            `struc:"little"` // e.g. iOSMac on macOS
+	AltOsVersion                  uint32            `struc:"little"` // e.g. 14.0 for iOSMac
+	SwiftOptsOffset               RelativeAddress64 `struc:"little"` // VM offset from cache_header* to Swift optimizations header
+	SwiftOptsSize                 uint64            `struc:"little"` // size of Swift optimizations header
+	SubCacheArrayOffset           RelativeAddress32 `struc:"little"` // file offset to first dyld_subcache_entry
+	SubCacheArrayCount            uint32            `struc:"little"` // number of subCache entries
+	SymbolFileUuid                [16]uint8         // unique value for the shared cache file containing unmapped local symbols
+	RosettaReadOnlyAddr           UnslidAddress     `struc:"little"` // (unslid) address of the start of where Rosetta can add read-only/executable data
+	RosettaReadOnlySize           uint64            `struc:"little"` // maximum size of the Rosetta read-only/executable region
+	RosettaReadWriteAddr          UnslidAddress     `struc:"little"` // (unslid) address of the start of where Rosetta can add read-write data
+	RosettaReadWriteSize          uint64            `struc:"little"` // maximum size of the Rosetta read-write region
+	ImagesOffset                  RelativeAddress32 `struc:"little"` // file offset to first dyld_cache_image_info
+	ImagesCount                   uint32            `struc:"little"` // number of dyld_cache_image_info entries
 }
 
 // Apple considers both those structs to be the same, as V2 simply extends V1
 // They just tell the difference by checking if the extra fields collide with the mappings
 // as they are supposed to be right after the header
 func (me DYLDCacheHeaderV2) V1() (*DYLDCacheHeaderV1, bool) {
-	isV1 := me.MappingOffset <= uint32(DYLDCacheHeaderV2SubCacheArrayOffsetOffset)
+	isV1 := uint32(me.MappingOffset) <= uint32(DYLDCacheHeaderV2SubCacheArrayOffsetOffset)
 	if !isV1 {
 		return nil, false
 	}
@@ -474,18 +534,18 @@ func (me DYLDCacheHeaderV2BitField) String() string {
 
 type DYLDCacheHeaderV3 struct {
 	DYLDCacheHeaderV2
-	CacheSubType       uint32 `struc:"little"` // 0 for development, 1 for production, when cacheType is multi-cache(2)
-	ObjcOptsOffset     uint64 `struc:"big"`    // VM offset from cache_header* to ObjC optimizations header
-	ObjcOptsSize       uint64 `struc:"big"`    // size of ObjC optimizations header
-	CacheAtlasOffset   uint64 `struc:"big"`    // VM offset from cache_header* to embedded cache atlas for process introspection
-	CacheAtlasSize     uint64 `struc:"big"`    // size of embedded cache atlas
-	DynamicDataOffset  uint64 `struc:"big"`    // VM offset from cache_header* to the location of dyld_cache_dynamic_data_header
-	DynamicDataMaxSize uint64 `struc:"big"`    // maximum size of space reserved from dynamic data
+	CacheSubType       uint32            `struc:"little"` // 0 for development, 1 for production, when cacheType is multi-cache(2)
+	ObjcOptsOffset     RelativeAddress64 `struc:"big"`    // VM offset from cache_header* to ObjC optimizations header
+	ObjcOptsSize       uint64            `struc:"big"`    // size of ObjC optimizations header
+	CacheAtlasOffset   RelativeAddress64 `struc:"big"`    // VM offset from cache_header* to embedded cache atlas for process introspection
+	CacheAtlasSize     uint64            `struc:"big"`    // size of embedded cache atlas
+	DynamicDataOffset  RelativeAddress64 `struc:"big"`    // VM offset from cache_header* to the location of dyld_cache_dynamic_data_header
+	DynamicDataMaxSize uint64            `struc:"big"`    // maximum size of space reserved from dynamic data
 }
 
 // Same deal as for V1 vs V2, V3 just superseeds V2 without having a dedicated struct
 func (me DYLDCacheHeaderV3) V2() (*DYLDCacheHeaderV2, bool) {
-	isV2 := me.MappingOffset <= uint32(DYLDCacheHeaderV3CacheSubTypeOffset)
+	isV2 := uint32(me.MappingOffset) <= uint32(DYLDCacheHeaderV3CacheSubTypeOffset)
 	if !isV2 {
 		return nil, false
 	}

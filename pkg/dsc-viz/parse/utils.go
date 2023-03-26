@@ -2,7 +2,6 @@ package parse
 
 import (
 	"fmt"
-	"io"
 
 	"github.com/LouisBrunner/mem-viz/pkg/commons"
 	"github.com/LouisBrunner/mem-viz/pkg/contracts"
@@ -10,39 +9,10 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-func isUnslidAddress[A addressOrOffset](special A) bool {
-	_, ok := interface{}(special).(subcontracts.UnslidAddress)
-	return ok
-}
-
-func calculateAddress[A addressOrOffset](base uintptr, special A, slide uint64) uintptr {
-	address := base + uintptr(special)
-	if isUnslidAddress(special) {
-		address = uintptr(uint64(special) + slide)
-		fmt.Printf("Unslid address %#16x + %#16x = %#16x\n", special, slide, address)
-	}
-	return address
-}
-
-func addParentOffset[A addressOrOffset](special A, parent uint64) A {
-	if isUnslidAddress(special) {
-		return special
-	}
-	return A(uint64(special) + parent)
-}
-
-func getReaderAtOffset[A addressOrOffset](cache subcontracts.Cache, special A, offset uint64) io.Reader {
-	addr := calculateAddress(0, special, gSlide) + uintptr(offset)
-	if isUnslidAddress(special) {
-		return cache.ReaderAbsolute(uint64(addr))
-	}
-	return cache.ReaderAtOffset(int64(addr))
-}
-
-func createCommonBlock[A addressOrOffset](parent *contracts.MemoryBlock, label string, offset A, size uint64) (*contracts.MemoryBlock, error) {
-	address := calculateAddress(parent.Address, offset, gSlide)
+func (me *parser) createCommonBlock(parent *contracts.MemoryBlock, label string, offset subcontracts.Address, size uint64) (*contracts.MemoryBlock, error) {
+	address := offset.AddBase(parent.Address).Calculate(me.slide)
 	if address < parent.Address {
-		return nil, fmt.Errorf("address of %q (%#16x) is before parent %q (%#16x)", label, address, parent.Name, parent.Address)
+		return nil, fmt.Errorf("address of %q (%#016x) is before parent %q (%#016x)", label, address, parent.Name, parent.Address)
 	}
 	block := &contracts.MemoryBlock{
 		Name:         label,
@@ -102,8 +72,8 @@ func addLink(parent *contracts.MemoryBlock, parentValueName string, child *contr
 	return fmt.Errorf("could not find value %q in parent %+v", parentValueName, parent)
 }
 
-func addLinkWithOffset[A addressOrOffset](parent *contracts.MemoryBlock, parentValueName string, offset A, linkName string) error {
-	if offset == 0 {
+func (me *parser) addLinkWithOffset(parent *contracts.MemoryBlock, parentValueName string, offset subcontracts.Address, linkName string) error {
+	if offset.Invalid() {
 		return nil
 	}
 
@@ -114,7 +84,7 @@ func addLinkWithOffset[A addressOrOffset](parent *contracts.MemoryBlock, parentV
 
 		parent.Values[i].Links = append(parent.Values[i].Links, &contracts.MemoryLink{
 			Name:          linkName,
-			TargetAddress: uint64(calculateAddress(parent.Address, offset, gSlide)),
+			TargetAddress: uint64(offset.AddBase(parent.Address).Calculate(me.slide)),
 		})
 		return nil
 	}
