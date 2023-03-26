@@ -62,6 +62,24 @@ func (me RelativeAddress64) Invalid() bool {
 	return me == 0
 }
 
+type ManualAddress uint64
+
+func (me ManualAddress) AddBase(base uintptr) Address {
+	return ManualAddress(uint64(base) + uint64(me))
+}
+
+func (me ManualAddress) Calculate(slide uint64) uintptr {
+	return uintptr(me)
+}
+
+func (me ManualAddress) GetReader(cache Cache, offset, slide uint64) io.Reader {
+	return cache.ReaderAtOffset(int64(me) + int64(offset))
+}
+
+func (me ManualAddress) Invalid() bool {
+	return false
+}
+
 type UnslidAddress uint64
 
 func (me UnslidAddress) AddBase(base uintptr) Address {
@@ -110,11 +128,11 @@ type DYLDCacheMappingAndSlideInfo struct {
 }
 
 type DYLDCacheImageInfo struct {
-	Address        uint64 `struc:"little"`
-	ModTime        uint64 `struc:"little"`
-	Inode          uint64 `struc:"little"`
-	PathFileOffset uint32 `struc:"little"`
-	Pad            uint32 `struc:"little"`
+	Address        UnslidAddress     `struc:"little"`
+	ModTime        uint64            `struc:"little"`
+	Inode          uint64            `struc:"little"`
+	PathFileOffset RelativeAddress32 `struc:"little"`
+	Pad            uint32            `struc:"little"`
 }
 
 type DYLDCacheImageInfoExtra struct {

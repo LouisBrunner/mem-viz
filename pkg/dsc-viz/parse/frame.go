@@ -29,3 +29,12 @@ func (f *blockFrame) pushFrame(parent, parentStruct *contracts.MemoryBlock) *blo
 		offsetFromStart: f.offsetFromStart + f.parent.ParentOffset,
 	}
 }
+
+func (f *blockFrame) siblingFrame(parentStruct *contracts.MemoryBlock) *blockFrame {
+	return &blockFrame{
+		cache:           f.cache,
+		parent:          f.parent,
+		parentStruct:    parentStruct,
+		offsetFromStart: f.offsetFromStart,
+	}
+}

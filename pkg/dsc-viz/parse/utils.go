@@ -2,8 +2,8 @@ package parse
 
 import (
 	"fmt"
+	"io"
 	"reflect"
-	"runtime/debug"
 
 	"github.com/LouisBrunner/mem-viz/pkg/commons"
 	"github.com/LouisBrunner/mem-viz/pkg/contracts"
@@ -27,6 +27,19 @@ func copyDataValue(v interface{}) interface{} {
 		dat = dat.Elem()
 	}
 	return dat.Interface()
+}
+
+func readCString(r io.Reader) string {
+	var b []byte
+	one := make([]byte, 1)
+	for {
+		c, err := r.Read(one)
+		if err != nil || c == 0 || one[0] == 0 {
+			break
+		}
+		b = append(b, one[:c]...)
+	}
+	return string(b)
 }
 
 func addChild(parent, child *contracts.MemoryBlock) {
@@ -74,7 +87,6 @@ func addLinkCommon(parent *contracts.MemoryBlock, parentValueName, linkName stri
 		return nil
 	}
 
-	debug.PrintStack()
 	return fmt.Errorf("could not find value %q in parent %+v", parentValueName, parent)
 }
 
@@ -82,12 +94,21 @@ func addLink(parent *contracts.MemoryBlock, parentValueName string, child *contr
 	return addLinkCommon(parent, parentValueName, linkName, child.Address)
 }
 
-func (me *parser) addLinkWithOffset(parent *contracts.MemoryBlock, parentValueName string, offset subcontracts.Address, linkName string) error {
+func (me *parser) addLinkWithOffset(frame *blockFrame, parentValueName string, offset subcontracts.Address, linkName string) error {
 	if offset.Invalid() {
 		return nil
 	}
 
-	return addLinkCommon(parent, parentValueName, linkName, offset.AddBase(parent.Address).Calculate(me.slide))
+	return addLinkCommon(frame.parentStruct, parentValueName, linkName, offset.AddBase(frame.parent.Address).Calculate(me.slide))
+}
+
+func addValue(block *contracts.MemoryBlock, name string, value interface{}, offset uint64, size uint8) {
+	block.Values = append(block.Values, &contracts.MemoryValue{
+		Name:   name,
+		Value:  formatValue(name, value),
+		Offset: offset,
+		Size:   size,
+	})
 }
 
 func formatValue(name string, value interface{}) string {

@@ -15,7 +15,7 @@ import (
 
 func (me *outputter) Text(m contracts.MemoryBlock) error {
 	// TODO: make this configurable on (mem|dsc)-viz
-	const thresholdsArrayTooBig = 20
+	const thresholdsArrayTooBig = 300
 	const showLinks = true
 	const showHiddenLinks = true
 	const showProperties = true
@@ -74,6 +74,7 @@ func (me *outputter) Text(m contracts.MemoryBlock) error {
 	flushEach := func(upTo, lastAddress uintptr, depth int) {
 		lastUnused := lastAddress
 
+		// FIXME: improve meshing when hidden
 		if showLinks && showHiddenLinks {
 			for linksIndex < len(linksOrder) && upTo > linksOrder[linksIndex] {
 				addr := linksOrder[linksIndex]

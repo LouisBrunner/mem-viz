@@ -37,13 +37,7 @@ func (me *parser) createStructBlock(parent *contracts.MemoryBlock, data any, lab
 		if fieldType.Kind() == reflect.Struct && field.Anonymous {
 			continue
 		}
-
-		block.Values = append(block.Values, &contracts.MemoryValue{
-			Name:   field.Name,
-			Value:  formatValue(field.Name, val.FieldByIndex(field.Index).Interface()),
-			Offset: uint64(field.Offset),
-			Size:   uint8(fieldType.Size()),
-		})
+		addValue(block, field.Name, val.FieldByIndex(field.Index).Interface(), uint64(field.Offset), uint8(fieldType.Size()))
 	}
 
 	return block, nil
@@ -62,7 +56,7 @@ func (me *parser) createBlobBlock(frame *blockFrame, fieldName string, offset su
 	if err != nil {
 		return nil, err
 	}
-	if me.addSizeLink {
+	if me.addSizeLink && fieldSizeName != "" {
 		err = addLink(frame.parentStruct, fieldSizeName, block, "gives size")
 		if err != nil {
 			return nil, err
@@ -73,4 +67,30 @@ func (me *parser) createBlobBlock(frame *blockFrame, fieldName string, offset su
 
 func (me *parser) createEmptyBlock(parent *contracts.MemoryBlock, label string, offset subcontracts.Address) (*contracts.MemoryBlock, error) {
 	return me.createCommonBlock(parent, label, offset, 0)
+}
+
+func (me *parser) createArrayBlock(frame *blockFrame, fieldName string, offset subcontracts.Address, countFieldName string, count uint64, data any, label string, create func(label string, offset subcontracts.Address, size uint64) (*contracts.MemoryBlock, error)) (*contracts.MemoryBlock, subcontracts.Address, uint64, error) {
+	if offset.Invalid() || count == 0 {
+		return nil, nil, 0, nil
+	}
+
+	val := getDataValue(data)
+	size := uint64(val.Type().Size())
+
+	offsetFromDefiner := offset.AddBase(uintptr(frame.offsetFromStart + frame.parentStruct.ParentOffset))
+	arrayBlock, err := create(fmt.Sprintf("%s (%d)", label, count), offsetFromDefiner, size*count)
+	if err != nil {
+		return nil, nil, 0, err
+	}
+	err = addLink(frame.parentStruct, fieldName, arrayBlock, "points to")
+	if err != nil {
+		return nil, nil, 0, err
+	}
+	if me.addSizeLink {
+		err = addLink(frame.parentStruct, countFieldName, arrayBlock, "gives size")
+		if err != nil {
+			return nil, nil, 0, err
+		}
+	}
+	return arrayBlock, offsetFromDefiner, size, nil
 }

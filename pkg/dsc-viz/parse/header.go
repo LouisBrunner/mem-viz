@@ -18,11 +18,11 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 	v2, okV2 := header.V2()
 	var headerBlock *contracts.MemoryBlock
 	if okV1 {
-		headerBlock, err = me.createStructBlock(block, v1, fmt.Sprintf("%s (V1)", label), subcontracts.RelativeAddress32(0))
+		headerBlock, err = me.createStructBlock(block, v1, fmt.Sprintf("%s (V1)", label), subcontracts.ManualAddress(0))
 	} else if okV2 {
-		headerBlock, err = me.createStructBlock(block, v2, fmt.Sprintf("%s (V2)", label), subcontracts.RelativeAddress32(0))
+		headerBlock, err = me.createStructBlock(block, v2, fmt.Sprintf("%s (V2)", label), subcontracts.ManualAddress(0))
 	} else {
-		headerBlock, err = me.createStructBlock(block, header, fmt.Sprintf("%s (V3)", label), subcontracts.RelativeAddress32(0))
+		headerBlock, err = me.createStructBlock(block, header, fmt.Sprintf("%s (V3)", label), subcontracts.ManualAddress(0))
 	}
 	if err != nil {
 		return nil, nil, err
@@ -39,11 +39,9 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 		if err != nil {
 			return nil, nil, err
 		}
-		for _, img := range imgs {
-			err = me.parseImage(frame, img)
-			if err != nil {
-				return nil, nil, err
-			}
+		err = me.parseImages(frame, imgs)
+		if err != nil {
+			return nil, nil, err
 		}
 	}
 	_, err = me.createBlobBlock(frame, "CodeSignatureOffset", header.CodeSignatureOffset, "CodeSignatureSize", header.CodeSignatureSize, "Code Signature")
@@ -76,11 +74,11 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 			return nil, nil, err
 		}
 	} else {
-		err = me.addLinkWithOffset(headerBlock, "DyldInCacheMh", header.DyldInCacheMh, "points to")
+		err = me.addLinkWithOffset(frame, "DyldInCacheMh", header.DyldInCacheMh, "points to")
 		if err != nil {
 			return nil, nil, err
 		}
-		err = me.addLinkWithOffset(headerBlock, "DyldInCacheEntry", header.DyldInCacheEntry, "points to")
+		err = me.addLinkWithOffset(frame, "DyldInCacheEntry", header.DyldInCacheEntry, "points to")
 		if err != nil {
 			return nil, nil, err
 		}
@@ -138,7 +136,7 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 		return nil, nil, err
 	}
 	// TODO: dig deeper in each mapping with slide
-	err = me.addLinkWithOffset(headerBlock, "DylibsPblSetAddr", header.DylibsPblSetAddr, "points to")
+	err = me.addLinkWithOffset(frame, "DylibsPblSetAddr", header.DylibsPblSetAddr, "points to")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -166,11 +164,9 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 	if err != nil {
 		return nil, nil, err
 	}
-	for _, img := range imgs {
-		err = me.parseImage(frame, img)
-		if err != nil {
-			return nil, nil, err
-		}
+	err = me.parseImages(frame, imgs)
+	if err != nil {
+		return nil, nil, err
 	}
 	if okV2 {
 		return block, headerBlock, nil

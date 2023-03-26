@@ -41,7 +41,7 @@ func (me *parser) parse(fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, e
 	}
 
 	mainHeader := fetcher.Header()
-	mainBlock, headerBlock, err := me.addCache(root, fetcher, "Main Header", subcontracts.RelativeAddress32(0))
+	mainBlock, headerBlock, err := me.addCache(root, fetcher, "Main Header", subcontracts.ManualAddress(0))
 	if err != nil {
 		return nil, err
 	}
