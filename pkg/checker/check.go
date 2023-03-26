@@ -18,7 +18,7 @@ func valueDetails(value *contracts.MemoryValue) string {
 }
 
 func Check(logger *logrus.Logger, mb *contracts.MemoryBlock) error {
-	err := commons.VisitEachBlock(mb, func(depth int, block *contracts.MemoryBlock) error {
+	err := commons.VisitEachBlock(mb, func(ctx commons.VisitContext, block *contracts.MemoryBlock) error {
 		size := uintptr(block.GetSize())
 		parentEnd := block.Address + size
 

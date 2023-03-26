@@ -248,6 +248,21 @@ func (me *parser) parsePatchInfo(frame *blockFrame, header subcontracts.DYLDCach
 			return err
 		}
 		patchInfoV2 = patchHeaderV3.DYLDCachePatchInfoV2
+
+		frame = frame.pushFrame(blob, patchHeaderBlock)
+		_, _, err = me.parseAndAddArray(frame, "GotClientsArrayAddr", patchHeaderV3.GotClientsArrayAddr, "GotClientsArrayCount", uint64(patchHeaderV3.GotClientsArrayCount), &subcontracts.DYLDCacheImageGotClientsV3{}, "GOT Clients")
+		if err != nil {
+			return err
+		}
+		_, _, err = me.parseAndAddArray(frame, "GotClientExportsArrayAddr", patchHeaderV3.GotClientExportsArrayAddr, "GotClientExportsArrayCount", uint64(patchHeaderV3.GotClientExportsArrayCount), &subcontracts.DYLDCachePatchableExportV3{}, "GOT Client Exports")
+		if err != nil {
+			return err
+		}
+		_, _, err = me.parseAndAddArray(frame, "GotLocationArrayAddr", patchHeaderV3.GotLocationArrayAddr, "GotLocationArrayCount", uint64(patchHeaderV3.GotLocationArrayCount), &subcontracts.DYLDCachePatchableLocationV3{}, "GOT Locations")
+		if err != nil {
+			return err
+		}
+
 		// TODO: add dyld_cache_patch_info and related
 	case 2:
 		blob, patchHeaderBlock, err = me.parseAndAddBlob(frame, "PatchInfoAddr", header.PatchInfoAddr, "PatchInfoSize", header.PatchInfoSize, &patchInfoV2, "Patch Info (V2)")
@@ -274,13 +289,13 @@ func (me *parser) parsePatchInfo(frame *blockFrame, header subcontracts.DYLDCach
 	if err != nil {
 		return err
 	}
-	_, err = me.createBlobBlock(frame, "PatchClientExportsArrayAddr", patchInfoV2.PatchClientExportsArrayAddr, "PatchClientExportsArrayCount", uint64(patchInfoV2.PatchClientExportsArrayCount), "Patch Client Exports")
+	_, _, err = me.parseAndAddArray(frame, "PatchClientExportsArrayAddr", patchInfoV2.PatchClientExportsArrayAddr, "PatchClientExportsArrayCount", uint64(patchInfoV2.PatchClientExportsArrayCount), &subcontracts.DYLDCachePatchableExportV2{}, "Patch Client Exports")
 	if err != nil {
 		return err
 	}
-	_, err = me.createBlobBlock(frame, "PatchLocationArrayAddr", patchInfoV2.PatchLocationArrayAddr, "PatchLocationArrayCount", uint64(patchInfoV2.PatchLocationArrayCount), "Patch Locations")
-	if err != nil {
-		return err
-	}
+	// _, _, err = me.parseAndAddArray(frame, "PatchLocationArrayAddr", patchInfoV2.PatchLocationArrayAddr, "PatchLocationArrayCount", uint64(patchInfoV2.PatchLocationArrayCount), &subcontracts.DYLDCachePatchableLocationV2{}, "Patch Locations")
+	// if err != nil {
+	// 	return err
+	// }
 	return nil
 }

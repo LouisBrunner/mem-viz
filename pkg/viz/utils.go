@@ -20,7 +20,7 @@ func (me linkOrigin) String() string {
 
 func getLinks(block *contracts.MemoryBlock) map[uintptr][]linkOrigin {
 	links := map[uintptr][]linkOrigin{}
-	commons.VisitEachLink(block, func(depth int, block *contracts.MemoryBlock, value *contracts.MemoryValue, link *contracts.MemoryLink) error {
+	commons.VisitEachLink(block, func(ctx commons.VisitContext, block *contracts.MemoryBlock, value *contracts.MemoryValue, link *contracts.MemoryLink) error {
 		links[uintptr(link.TargetAddress)] = append(links[uintptr(link.TargetAddress)], linkOrigin{
 			block: block,
 			value: value,

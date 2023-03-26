@@ -9,6 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// TODO: should be a dsc-viz flag
 const thresholdsArrayTooBig = 3000
 
 type parser struct {
@@ -72,7 +73,7 @@ func (me *parser) parse(fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, e
 }
 
 func rebalance(root *contracts.MemoryBlock) {
-	commons.VisitEachBlock(root, func(depth int, block *contracts.MemoryBlock) error {
+	commons.VisitEachBlock(root, func(ctx commons.VisitContext, block *contracts.MemoryBlock) error {
 		for i := 0; i < len(block.Content); i += 1 {
 			child := block.Content[i]
 			if i >= len(block.Content)-1 {

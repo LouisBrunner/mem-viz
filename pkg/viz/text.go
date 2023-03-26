@@ -14,6 +14,9 @@ import (
 )
 
 func (me *outputter) Text(m contracts.MemoryBlock) error {
+	// TODO: make this configurable on (mem|dsc)-viz
+	const thresholdsArrayTooBig = 20
+
 	const indentStr = "  "
 
 	indent := func(depth int, s string) string {
@@ -86,35 +89,37 @@ func (me *outputter) Text(m contracts.MemoryBlock) error {
 	}
 
 	lastAddress := uintptr(0)
-	err := commons.VisitEachBlock(&m, func(depth int, block *contracts.MemoryBlock) error {
-		flushLinks(block.Address, lastAddress, depth)
+	err := commons.VisitEachBlock(&m, func(ctx commons.VisitContext, block *contracts.MemoryBlock) error {
+		flushLinks(block.Address, lastAddress, ctx.Depth)
 
-		linksSuffixes := []string{}
-		for linksIndex < len(linksOrder) && uintptr(block.Address) == linksOrder[linksIndex] {
-			origins := links[linksOrder[linksIndex]]
-			for _, origin := range origins {
-				linksSuffixes = append(linksSuffixes, origin.String())
-			}
-			linksIndex += 1
-		}
-		linksSuffix := ""
-		if len(linksSuffixes) > 0 {
-			linksSuffix = fmt.Sprintf(" <- %s", strings.Join(linksSuffixes, ", "))
-		}
-
-		details := ""
-		if len(block.Values) > 0 {
-			detailsList := make([]string, len(block.Values))
-			for i, value := range block.Values {
-				detailsList[i] = fmt.Sprintf("%s:%s", makeAcronym(value.Name), value.Value)
-			}
-			details = fmt.Sprintf(" {%s}", strings.Join(detailsList, ","))
-		}
 		size := block.GetSize()
-		builder.Writef(formatMem, block.Address, block.Address+uintptr(size), humanize.Bytes(size), indent(depth, indentStr), block.Name, details, linksSuffix)
+		if ctx.Parent == nil || len(ctx.Parent.Content) < thresholdsArrayTooBig {
+			linksSuffixes := []string{}
+			for linksIndex < len(linksOrder) && uintptr(block.Address) == linksOrder[linksIndex] {
+				origins := links[linksOrder[linksIndex]]
+				for _, origin := range origins {
+					linksSuffixes = append(linksSuffixes, origin.String())
+				}
+				linksIndex += 1
+			}
+			linksSuffix := ""
+			if len(linksSuffixes) > 0 {
+				linksSuffix = fmt.Sprintf(" <- %s", strings.Join(linksSuffixes, ", "))
+			}
+
+			details := ""
+			if len(block.Values) > 0 {
+				detailsList := make([]string, len(block.Values))
+				for i, value := range block.Values {
+					detailsList[i] = fmt.Sprintf("%s:%s", makeAcronym(value.Name), value.Value)
+				}
+				details = fmt.Sprintf(" {%s}", strings.Join(detailsList, ","))
+			}
+			builder.Writef(formatMem, block.Address, block.Address+uintptr(size), humanize.Bytes(size), indent(ctx.Depth, indentStr), block.Name, details, linksSuffix)
+		}
 
 		lastAddress = block.Address + uintptr(size)
-		parentsEnd[depth] = lastAddress
+		parentsEnd[ctx.Depth] = lastAddress
 		return nil
 	})
 	if err != nil {
