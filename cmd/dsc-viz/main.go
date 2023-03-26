@@ -59,7 +59,7 @@ func main() {
 				return nil, err
 			}
 
-			return parse.Parse(fetcher)
+			return parse.Parse(logger, fetcher)
 		},
 	})
 }

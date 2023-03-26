@@ -6,14 +6,28 @@ import (
 	"github.com/LouisBrunner/mem-viz/pkg/commons"
 	"github.com/LouisBrunner/mem-viz/pkg/contracts"
 	subcontracts "github.com/LouisBrunner/mem-viz/pkg/dsc-viz/contracts"
+	"github.com/sirupsen/logrus"
 )
 
-func Parse(fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, error) {
+var gSlide uint64
+
+func Parse(logger *logrus.Logger, fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, error) {
 	root := &contracts.MemoryBlock{
 		Name:    "DSC",
 		Address: fetcher.BaseAddress(),
 	}
+
 	mainHeader := fetcher.Header()
+	slide, err := calculateSlide(fetcher, mainHeader)
+	if err != nil {
+		return nil, err
+	}
+	logger.Debugf("Slide: %#16x", slide)
+
+	// TODO: HORRID!!!!!!!!!!!! (but it works)
+	// find a way to pass the slide to the other functions without adding it on EVERY FUNCTION
+	// context.Context? could add "current parent", "current header" etc
+	gSlide = slide
 
 	mainBlock, headerBlock, err := addCache(root, fetcher, "Main Header", 0)
 	if err != nil {
@@ -43,6 +57,12 @@ func Parse(fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, error) {
 		}
 	}
 
+	rebalance(root)
+
+	return root, nil
+}
+
+func rebalance(root *contracts.MemoryBlock) {
 	commons.VisitEachBlock(root, func(depth int, block *contracts.MemoryBlock) error {
 		for i := 0; i < len(block.Content); i += 1 {
 			child := block.Content[i]
@@ -61,6 +81,14 @@ func Parse(fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, error) {
 		}
 		return nil
 	})
+}
 
-	return root, nil
+func calculateSlide(cache subcontracts.Cache, header subcontracts.DYLDCacheHeaderV3) (uint64, error) {
+	reader := getReaderAtOffset(cache, uint64(header.MappingOffset), 0)
+	mapping := &subcontracts.DYLDCacheMappingInfo{}
+	err := commons.Unpack(reader, mapping)
+	if err != nil {
+		return 0, nil
+	}
+	return uint64(cache.BaseAddress() - uintptr(mapping.Address)), nil
 }

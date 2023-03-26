@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"unsafe"
 
+	"github.com/LouisBrunner/mem-viz/pkg/commons"
 	"github.com/LouisBrunner/mem-viz/pkg/contracts"
 	subcontracts "github.com/LouisBrunner/mem-viz/pkg/dsc-viz/contracts"
 )
@@ -96,11 +97,10 @@ func addCache(parent *contracts.MemoryBlock, cache subcontracts.Cache, label str
 			return nil, nil, err
 		}
 	} else {
-		_, _, _, err = parseAndAddBlob(cache, block, headerBlock, "PatchInfoAddr", header.PatchInfoAddr, "PatchInfoSize", header.PatchInfoSize, subcontracts.DYLDCachePatchInfo{}, "Patch Info")
+		err = parsePatchInfo(cache, block, headerBlock, header)
 		if err != nil {
 			return nil, nil, err
 		}
-		// TODO: add dyld_cache_patch_info and related
 	}
 	_, err = createBlobBlock(block, headerBlock, "ProgClosuresAddr", header.ProgClosuresAddr, "ProgClosuresSize", header.ProgClosuresSize, "Program Closures")
 	if err != nil {
@@ -212,4 +212,44 @@ func addSubCacheEntry(parent, headerBlock, subCache *contracts.MemoryBlock, head
 		}
 	}
 	return addLink(block, "CacheVmOffset", subCache, "points to")
+}
+
+func parsePatchInfo(cache subcontracts.Cache, block, headerBlock *contracts.MemoryBlock, header subcontracts.DYLDCacheHeaderV3) error {
+	if header.PatchInfoAddr == 0 {
+		return nil
+	}
+
+	if _, v1 := header.V1(); v1 {
+		_, _, _, err := parseAndAddBlob(cache, block, headerBlock, "PatchInfoAddr", header.PatchInfoAddr, "PatchInfoSize", header.PatchInfoSize, subcontracts.DYLDCachePatchInfoV1{}, "Patch Info (V1)")
+		if err != nil {
+			return err
+		}
+		// FIXME: should add all related structs but don't have a V1 cache
+		return nil
+	}
+
+	fmt.Printf("%#16x\n", header.PatchInfoAddr)
+	reader := getReaderAtOffset(cache, header.PatchInfoAddr, 0)
+	patchHeader := subcontracts.DYLDCachePatchInfo{}
+	err := commons.Unpack(reader, &patchHeader)
+	if err != nil {
+		return err
+	}
+
+	if patchHeader.PatchTableVersion == 3 {
+		_, _, _, err = parseAndAddBlob(cache, block, headerBlock, "PatchInfoAddr", header.PatchInfoAddr, "PatchInfoSize", header.PatchInfoSize, subcontracts.DYLDCachePatchInfoV3{}, "Patch Info (V3)")
+		if err != nil {
+			return err
+		}
+		// TODO: add dyld_cache_patch_info and related
+	} else if patchHeader.PatchTableVersion == 2 {
+		_, _, _, err = parseAndAddBlob(cache, block, headerBlock, "PatchInfoAddr", header.PatchInfoAddr, "PatchInfoSize", header.PatchInfoSize, subcontracts.DYLDCachePatchInfoV2{}, "Patch Info (V2)")
+		if err != nil {
+			return err
+		}
+		// TODO: add dyld_cache_patch_info and related
+	} else {
+		return fmt.Errorf("unknown patch table version: %d", patchHeader.PatchTableVersion)
+	}
+	return nil
 }

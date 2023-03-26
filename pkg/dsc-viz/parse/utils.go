@@ -15,10 +15,11 @@ func isUnslidAddress[A addressOrOffset](special A) bool {
 	return ok
 }
 
-func calculateAddress[A addressOrOffset](base uintptr, special A) uintptr {
+func calculateAddress[A addressOrOffset](base uintptr, special A, slide uint64) uintptr {
 	address := base + uintptr(special)
 	if isUnslidAddress(special) {
-		address = uintptr(special)
+		address = uintptr(uint64(special) + slide)
+		fmt.Printf("Unslid address %#16x + %#16x = %#16x\n", special, slide, address)
 	}
 	return address
 }
@@ -31,15 +32,15 @@ func addParentOffset[A addressOrOffset](special A, parent uint64) A {
 }
 
 func getReaderAtOffset[A addressOrOffset](cache subcontracts.Cache, special A, offset uint64) io.Reader {
-	addr := uint64(special) + offset
+	addr := calculateAddress(0, special, gSlide) + uintptr(offset)
 	if isUnslidAddress(special) {
-		return cache.ReaderAbsolute(addr)
+		return cache.ReaderAbsolute(uint64(addr))
 	}
 	return cache.ReaderAtOffset(int64(addr))
 }
 
 func createCommonBlock[A addressOrOffset](parent *contracts.MemoryBlock, label string, offset A, size uint64) (*contracts.MemoryBlock, error) {
-	address := calculateAddress(parent.Address, offset)
+	address := calculateAddress(parent.Address, offset, gSlide)
 	if address < parent.Address {
 		return nil, fmt.Errorf("address of %q (%#16x) is before parent %q (%#16x)", label, address, parent.Name, parent.Address)
 	}
@@ -113,7 +114,7 @@ func addLinkWithOffset[A addressOrOffset](parent *contracts.MemoryBlock, parentV
 
 		parent.Values[i].Links = append(parent.Values[i].Links, &contracts.MemoryLink{
 			Name:          linkName,
-			TargetAddress: uint64(calculateAddress(parent.Address, offset)),
+			TargetAddress: uint64(calculateAddress(parent.Address, offset, gSlide)),
 		})
 		return nil
 	}
