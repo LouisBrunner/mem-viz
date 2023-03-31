@@ -182,10 +182,12 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 	if okV2 {
 		return block, headerBlock, nil
 	}
-	objcOptsAddr := header.ObjcOptsOffset.AddBase(frame.parent.Address).Calculate(me.slide)
 	objcOptsSize := header.ObjcOptsSize
-	if objcOptsAddr+uintptr(objcOptsSize) > cs.Address { // FIXME: amd64 has overlapping CS and ObjcOpts, somehow?
-		objcOptsSize = uint64(cs.Address - objcOptsAddr)
+	if cs != nil {
+		objcOptsAddr := header.ObjcOptsOffset.AddBase(frame.parent.Address).Calculate(me.slide)
+		if cs.Address > objcOptsAddr && objcOptsAddr+uintptr(objcOptsSize) > cs.Address { // FIXME: amd64 has overlapping CS and ObjcOpts, somehow?
+			objcOptsSize = uint64(cs.Address - objcOptsAddr)
+		}
 	}
 	_, err = me.createBlobBlock(frame, "ObjcOptsOffset", header.ObjcOptsOffset, "ObjcOptsSize", objcOptsSize, "Objective-C Optimizations Header")
 	if err != nil {

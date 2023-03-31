@@ -17,7 +17,7 @@ func (me *outputter) Text(m contracts.MemoryBlock) error {
 	// TODO: make this configurable on (mem|dsc)-viz
 	const thresholdsArrayTooBig = 300
 	const showLinks = true
-	const showHiddenLinks = true
+	const showHiddenLinks = false
 	const showProperties = true
 	const showUnused = true
 
@@ -63,10 +63,19 @@ func (me *outputter) Text(m contracts.MemoryBlock) error {
 			return
 		}
 
-		scopeEnd := parentsEnd[depth]
-		if from < scopeEnd && scopeEnd < to {
-			builder.Writef(formatUnused, from, scopeEnd, humanize.Bytes(uint64(scopeEnd-from)), indent(depth+1, indentStr))
-			from = scopeEnd
+		depths := maps.Keys(parentsEnd)
+		slices.Sort(depths)
+		for i := len(depths) - 1; i >= 0 && depths[i] >= depth; i-- {
+			idepth := depths[i]
+			scopeEnd := parentsEnd[idepth]
+			if from < scopeEnd && scopeEnd <= to {
+				builder.Writef(formatUnused, from, scopeEnd, humanize.Bytes(uint64(scopeEnd-from)), indent(idepth+1, indentStr))
+				from = scopeEnd
+				parentsEnd[idepth] = from
+			}
+			if from >= to {
+				return
+			}
 		}
 		builder.Writef(formatUnused, from, to, humanize.Bytes(uint64(to-from)), indent(depth, indentStr))
 	}

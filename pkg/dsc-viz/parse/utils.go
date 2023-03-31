@@ -75,6 +75,10 @@ func moveChild(parent, newParent *contracts.MemoryBlock, childIndex int) {
 }
 
 func addLinkCommon(parent *contracts.MemoryBlock, parentValueName, linkName string, addr uintptr) error {
+	if parentValueName == "" {
+		return nil
+	}
+
 	for i := range parent.Values {
 		if parent.Values[i].Name != parentValueName {
 			continue

@@ -2,6 +2,7 @@ package parse
 
 import (
 	"fmt"
+	"unsafe"
 
 	"github.com/LouisBrunner/mem-viz/pkg/commons"
 	"github.com/LouisBrunner/mem-viz/pkg/contracts"
@@ -93,31 +94,61 @@ func (me *parser) parseMappingWithSlide(frame *blockFrame, mapping arrayElement,
 	switch versionHeader.Version {
 	case 1:
 		slideInfoV1 := &subcontracts.DYLDCacheSlideInfo{}
-		_, _, err = me.parseAndAddBlob(sideFrame, "SlideInfoFileOffset", newAddress, "SlideInfoFileSize", mappingData.SlideInfoFileSize, slideInfoV1, title)
+		blob, header, err := me.parseAndAddBlob(sideFrame, "SlideInfoFileOffset", newAddress, "SlideInfoFileSize", mappingData.SlideInfoFileSize, slideInfoV1, title)
 		if err != nil {
 			return nil, err
 		}
-	// TODO: add exclusive new content just for you
+		subFrame := sideFrame.pushFrame(blob, header)
+		_, _, err = me.parseAndAddArray(subFrame, "TocOffset", slideInfoV1.TocOffset, "TocCount", uint64(slideInfoV1.TocCount), uint16(0), fmt.Sprintf("%s.TOC", title))
+		if err != nil {
+			return nil, err
+		}
+		_, _, err = me.parseAndAddArray(subFrame, "EntriesOffset", slideInfoV1.EntriesOffset, "EntriesCount", uint64(slideInfoV1.EntriesCount), subcontracts.DYLDCacheSlideInfoEntry{}, fmt.Sprintf("%s.Entries", title))
+		if err != nil {
+			return nil, err
+		}
 	case 2:
 		slideInfoV2 := &subcontracts.DYLDCacheSlideInfo2{}
-		_, _, err = me.parseAndAddBlob(sideFrame, "SlideInfoFileOffset", newAddress, "SlideInfoFileSize", mappingData.SlideInfoFileSize, slideInfoV2, title)
+		blob, header, err := me.parseAndAddBlob(sideFrame, "SlideInfoFileOffset", newAddress, "SlideInfoFileSize", mappingData.SlideInfoFileSize, slideInfoV2, title)
 		if err != nil {
 			return nil, err
 		}
-	// TODO: add exclusive new content just for you
+		subFrame := sideFrame.pushFrame(blob, header)
+		_, _, err = me.parseAndAddArray(subFrame, "PageStartsOffset", slideInfoV2.PageStartsOffset, "PageStartsCount", uint64(slideInfoV2.PageStartsCount), uint16(0), fmt.Sprintf("%s.Pages", title))
+		if err != nil {
+			return nil, err
+		}
+		_, _, err = me.parseAndAddArray(subFrame, "PageExtrasOffset", slideInfoV2.PageExtrasOffset, "PageExtrasCount", uint64(slideInfoV2.PageExtrasCount), uint16(0), fmt.Sprintf("%s.Extra Pages", title))
+		if err != nil {
+			return nil, err
+		}
 	case 3:
 		slideInfoV3 := &subcontracts.DYLDCacheSlideInfo3{}
-		_, _, err = me.parseAndAddBlob(sideFrame, "SlideInfoFileOffset", newAddress, "SlideInfoFileSize", mappingData.SlideInfoFileSize, slideInfoV3, title)
+		blob, header, err := me.parseAndAddBlob(sideFrame, "SlideInfoFileOffset", newAddress, "SlideInfoFileSize", mappingData.SlideInfoFileSize, slideInfoV3, title)
+		if err != nil {
+			return nil, err
+		}
+		subFrame := sideFrame.pushFrame(blob, header)
+		subFrame.offsetFromStart = 0 // FIXME: offset calculation might be wrong for V1, V2 and V4
+		_, _, err = me.parseAndAddArray(subFrame, "", subcontracts.RelativeAddress32(unsafe.Sizeof(*slideInfoV3)), "PageStartsCount", uint64(slideInfoV3.PageStartsCount), uint16(0), fmt.Sprintf("%s.Pages", title))
 		if err != nil {
 			return nil, err
 		}
 	case 4:
 		slideInfoV4 := &subcontracts.DYLDCacheSlideInfo4{}
-		_, _, err = me.parseAndAddBlob(sideFrame, "SlideInfoFileOffset", newAddress, "SlideInfoFileSize", mappingData.SlideInfoFileSize, slideInfoV4, title)
+		blob, header, err := me.parseAndAddBlob(sideFrame, "SlideInfoFileOffset", newAddress, "SlideInfoFileSize", mappingData.SlideInfoFileSize, slideInfoV4, title)
 		if err != nil {
 			return nil, err
 		}
-	// TODO: add exclusive new content just for you
+		subFrame := sideFrame.pushFrame(blob, header)
+		_, _, err = me.parseAndAddArray(subFrame, "PageStartsOffset", slideInfoV4.PageStartsOffset, "PageStartsCount", uint64(slideInfoV4.PageStartsCount), uint16(0), fmt.Sprintf("%s.Pages", title))
+		if err != nil {
+			return nil, err
+		}
+		_, _, err = me.parseAndAddArray(subFrame, "PageExtrasOffset", slideInfoV4.PageExtrasOffset, "PageExtrasCount", uint64(slideInfoV4.PageExtrasCount), uint16(0), fmt.Sprintf("%s.Extra Pages", title))
+		if err != nil {
+			return nil, err
+		}
 	default:
 		return nil, fmt.Errorf("unsupported slide info version: %d", versionHeader.Version)
 	}

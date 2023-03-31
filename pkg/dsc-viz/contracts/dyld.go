@@ -228,11 +228,11 @@ const (
 )
 
 type DYLDCacheSlideInfo3 struct {
-	Version         uint32   `struc:"little"` // currently 3
-	PageSize        uint32   `struc:"little"` // currently 4096 (may also be 16384)
-	PageStartsCount uint32   `struc:"little,sizeof=PageStarts"`
-	AuthValueAdd    uint64   `struc:"little"`
-	PageStarts      []uint16 /* page_starts_count */
+	Version         uint32 `struc:"little"` // currently 3
+	PageSize        uint32 `struc:"little"` // currently 4096 (may also be 16384)
+	PageStartsCount uint32 `struc:"little"`
+	AuthValueAdd    uint64 `struc:"little"`
+	// PageStarts      []uint16 /* page_starts_count */
 }
 
 const (

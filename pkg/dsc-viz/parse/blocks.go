@@ -56,7 +56,7 @@ func (me *parser) createBlobBlock(frame *blockFrame, fieldName string, offset su
 	if err != nil {
 		return nil, err
 	}
-	if me.addSizeLink && fieldSizeName != "" {
+	if me.addSizeLink {
 		err = addLink(frame.parentStruct, fieldSizeName, block, "gives size")
 		if err != nil {
 			return nil, err
