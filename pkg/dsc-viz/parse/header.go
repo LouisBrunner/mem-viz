@@ -30,11 +30,15 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 
 	frame := topFrame(cache, block, headerBlock)
 	var pathsBlock *contracts.MemoryBlock
-	_, _, err = me.parseAndAddArray(frame, "MappingOffset", header.MappingOffset, "MappingCount", uint64(header.MappingCount), &subcontracts.DYLDCacheMappingInfo{}, "Mappings")
+	var mappingBlocks []*contracts.MemoryBlock
+	_, mappings, err := me.parseAndAddArray(frame, "MappingOffset", header.MappingOffset, "MappingCount", uint64(header.MappingCount), &subcontracts.DYLDCacheMappingInfo{}, "Mappings")
 	if err != nil {
 		return nil, nil, err
 	}
-	// TODO: dig deeper in each mapping
+	mappingBlocks, err = me.parseMappings(frame, mappings, mappingBlocks)
+	if err != nil {
+		return nil, nil, err
+	}
 	if okV1 {
 		_, imgs, err := me.parseAndAddArray(frame, "ImagesOffset", v1.ImagesOffset, "ImagesCount", uint64(v1.ImagesCount), &subcontracts.DYLDCacheImageInfo{}, "Images")
 		if err != nil {
@@ -92,7 +96,6 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 	if err != nil {
 		return nil, nil, err
 	}
-	// TODO: dig deeper in each image text
 	if okV1 {
 		// FIXME: should it use a struct? can't find reference to it in DYLD and don't have a V1 cache
 		_, err = me.createBlobBlock(frame, "DylibsImageGroupAddr", v1.DylibsImageGroupAddr, "DylibsImageGroupSize", uint64(v1.DylibsImageGroupSize), "Dylibs ImageGroups")
@@ -136,11 +139,14 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 	if okV1 {
 		return block, headerBlock, nil
 	}
-	_, _, err = me.parseAndAddArray(frame, "MappingWithSlideOffset", header.MappingWithSlideOffset, "MappingWithSlideCount", uint64(header.MappingWithSlideCount), &subcontracts.DYLDCacheMappingAndSlideInfo{}, "Mappings With Slide")
+	_, mappingsWithSlide, err := me.parseAndAddArray(frame, "MappingWithSlideOffset", header.MappingWithSlideOffset, "MappingWithSlideCount", uint64(header.MappingWithSlideCount), &subcontracts.DYLDCacheMappingAndSlideInfo{}, "Mappings With Slide")
 	if err != nil {
 		return nil, nil, err
 	}
-	// TODO: dig deeper in each mapping with slide
+	mappingBlocks, err = me.parseMappingsWithSlide(frame, mappingsWithSlide, mappingBlocks)
+	if err != nil {
+		return nil, nil, err
+	}
 	err = me.addLinkWithOffset(frame, "DylibsPblSetAddr", header.DylibsPblSetAddr, "points to")
 	if err != nil {
 		return nil, nil, err

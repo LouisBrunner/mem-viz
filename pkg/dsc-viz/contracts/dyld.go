@@ -101,11 +101,11 @@ func (me UnslidAddress) Invalid() bool {
 // From Apple's `dyld-*/cache-builder/dyld_cache_format.h`
 
 type DYLDCacheMappingInfo struct {
-	Address    uint64 `struc:"little"`
-	Size       uint64 `struc:"little"`
-	FileOffset uint64 `struc:"little"`
-	MaxProt    uint32 `struc:"little"`
-	InitProt   uint32 `struc:"little"`
+	Address    UnslidAddress     `struc:"little"`
+	Size       uint64            `struc:"little"`
+	FileOffset RelativeAddress64 `struc:"little"`
+	MaxProt    uint32            `struc:"little"`
+	InitProt   uint32            `struc:"little"`
 }
 
 const (
@@ -117,14 +117,14 @@ const (
 )
 
 type DYLDCacheMappingAndSlideInfo struct {
-	Address             uint64 `struc:"little"`
-	Size                uint64 `struc:"little"`
-	FileOffset          uint64 `struc:"little"`
-	SlideInfoFileOffset uint64 `struc:"little"`
-	SlideInfoFileSize   uint64 `struc:"little"`
-	Flags               uint64 `struc:"little"`
-	MaxProt             uint32 `struc:"little"`
-	InitProt            uint32 `struc:"little"`
+	Address             UnslidAddress     `struc:"little"`
+	Size                uint64            `struc:"little"`
+	FileOffset          RelativeAddress64 `struc:"little"`
+	SlideInfoFileOffset RelativeAddress64 `struc:"little"`
+	SlideInfoFileSize   uint64            `struc:"little"`
+	Flags               uint64            `struc:"little"`
+	MaxProt             uint32            `struc:"little"`
+	InitProt            uint32            `struc:"little"`
 }
 
 type DYLDCacheImageInfo struct {
@@ -188,13 +188,17 @@ type DYLDCacheImageTextInfo struct {
 	PathOffset      RelativeAddress32 `struc:"little"`
 }
 
+type DYLDCacheSlideInfoVersion struct {
+	Version uint32 `struc:"little"` // 1 to 4
+}
+
 type DYLDCacheSlideInfo struct {
-	Version       uint32 `struc:"little"` // currently 1
-	TocOffset     uint32 `struc:"little"`
-	TocCount      uint32 `struc:"little"`
-	EntriesOffset uint32 `struc:"little"`
-	EntriesCount  uint32 `struc:"little"`
-	EntriesSize   uint32 `struc:"little"` // currently 128
+	Version       uint32            `struc:"little"` // currently 1
+	TocOffset     RelativeAddress32 `struc:"little"`
+	TocCount      uint32            `struc:"little"`
+	EntriesOffset RelativeAddress32 `struc:"little"`
+	EntriesCount  uint32            `struc:"little"`
+	EntriesSize   uint32            `struc:"little"` // currently 128
 	// uint16_t toc[toc_count];
 	// entrybitmap entries[entries_count];
 }
@@ -204,14 +208,14 @@ type DYLDCacheSlideInfoEntry struct {
 }
 
 type DYLDCacheSlideInfo2 struct {
-	Version          uint32 `struc:"little"` // currently 2
-	PageSize         uint32 `struc:"little"` // currently 4096 (may also be 16384)
-	PageStartsOffset uint32
-	PageStartsCount  uint32
-	PageExtrasOffset uint32
-	PageExtrasCount  uint32
-	DeltaMask        uint64 `struc:"little"` // which (contiguous) set of bits contains the delta to the next rebase location
-	ValueAdd         uint64
+	Version          uint32            `struc:"little"` // currently 2
+	PageSize         uint32            `struc:"little"` // currently 4096 (may also be 16384)
+	PageStartsOffset RelativeAddress32 `struc:"little"`
+	PageStartsCount  uint32            `struc:"little"`
+	PageExtrasOffset RelativeAddress32 `struc:"little"`
+	PageExtrasCount  uint32            `struc:"little"`
+	DeltaMask        uint64            `struc:"little"` // which (contiguous) set of bits contains the delta to the next rebase location
+	ValueAdd         uint64            `struc:"little"`
 	//uint16_t    page_starts[page_starts_count];
 	//uint16_t    page_extras[page_extras_count];
 }
@@ -224,10 +228,10 @@ const (
 )
 
 type DYLDCacheSlideInfo3 struct {
-	Version         uint32 `struc:"little"` // currently 3
-	PageSize        uint32 `struc:"little"` // currently 4096 (may also be 16384)
-	PageStartsCount uint32 `struc:"little,sizeof=PageStarts"`
-	AuthValueAdd    uint64
+	Version         uint32   `struc:"little"` // currently 3
+	PageSize        uint32   `struc:"little"` // currently 4096 (may also be 16384)
+	PageStartsCount uint32   `struc:"little,sizeof=PageStarts"`
+	AuthValueAdd    uint64   `struc:"little"`
 	PageStarts      []uint16 /* page_starts_count */
 }
 
@@ -290,14 +294,14 @@ func (me DYLDCacheSlidePointer3Auth) String() string {
 }
 
 type DYLDCacheSlideInfo4 struct {
-	Version          uint32 `struc:"little"` // currently 4
-	PageSize         uint32 `struc:"little"` // currently 4096 (may also be 16384)
-	PageStartsOffset uint32 `struc:"little"`
-	PageStartsCount  uint32 `struc:"little"`
-	PageExtrasOffset uint32 `struc:"little"`
-	PageExtrasCount  uint32 `struc:"little"`
-	DeltaMask        uint64 `struc:"little"` // which (contiguous) set of bits contains the delta to the next rebase location (0xC0000000)
-	ValueAdd         uint64 `struc:"little"` // base address of cache
+	Version          uint32            `struc:"little"` // currently 4
+	PageSize         uint32            `struc:"little"` // currently 4096 (may also be 16384)
+	PageStartsOffset RelativeAddress32 `struc:"little"`
+	PageStartsCount  uint32            `struc:"little"`
+	PageExtrasOffset RelativeAddress32 `struc:"little"`
+	PageExtrasCount  uint32            `struc:"little"`
+	DeltaMask        uint64            `struc:"little"` // which (contiguous) set of bits contains the delta to the next rebase location (0xC0000000)
+	ValueAdd         uint64            `struc:"little"` // base address of cache
 	//uint16_t    page_starts[page_starts_count];
 	//uint16_t    page_extras[page_extras_count];
 }

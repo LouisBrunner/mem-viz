@@ -151,6 +151,8 @@ func formatValue(name string, value interface{}) string {
 		return commons.FromCString(v[:])
 	case [32]byte:
 		return commons.FromCString(v[:])
+	case []uint16:
+		return fmt.Sprintf("[%d]uint16", len(v))
 	}
 	return fmt.Sprintf("%v", value)
 }
