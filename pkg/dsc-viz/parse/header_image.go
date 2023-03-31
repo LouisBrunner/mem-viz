@@ -56,8 +56,7 @@ func (me *parser) addImage(frame *blockFrame, image *contracts.MemoryBlock, path
 	if size == 0 {
 		err = me.addLinkWithOffset(sideFrame, addressName, address, "points to")
 	} else {
-		// TODO: need better grouping + common between caches
-		// _, err = me.createBlobBlock(sideFrame, addressName, address, sizeName, size, fmt.Sprintf("%s TEXT", path))
+		_, err = me.createBlobBlock(sideFrame, addressName, address, sizeName, size, fmt.Sprintf("%s TEXT", path))
 	}
 	if err != nil {
 		return nil, err

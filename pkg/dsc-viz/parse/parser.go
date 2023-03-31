@@ -14,6 +14,8 @@ type parser struct {
 	slide                 uint64
 	addSizeLink           bool
 	thresholdsArrayTooBig uint64
+	// FIXME: used only for emergencies, should never be used really
+	parents map[*contracts.MemoryBlock]*contracts.MemoryBlock
 }
 
 func Parse(logger *logrus.Logger, fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, error) {
@@ -30,6 +32,7 @@ func Parse(logger *logrus.Logger, fetcher subcontracts.Fetcher) (*contracts.Memo
 		// TODO: should be dsc-viz flags
 		addSizeLink:           false,
 		thresholdsArrayTooBig: 3000,
+		parents:               make(map[*contracts.MemoryBlock]*contracts.MemoryBlock),
 	}
 	return parser.parse(fetcher)
 }
@@ -76,7 +79,6 @@ func (me *parser) parse(fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, e
 
 func rebalance(root *contracts.MemoryBlock) {
 	commons.VisitEachBlock(root, func(ctx commons.VisitContext, block *contracts.MemoryBlock) error {
-		// top:
 		for i := 0; i < len(block.Content); {
 			child := block.Content[i]
 			if i >= len(block.Content)-1 {
@@ -90,6 +92,11 @@ func rebalance(root *contracts.MemoryBlock) {
 			}
 			if isInsideOf(child, nextChild) {
 				moveChild(block, nextChild, i)
+				continue
+			}
+
+			if child.Address == nextChild.Address && child.GetSize() == nextChild.GetSize() && child.Name == nextChild.Name {
+				removeChild(block, i+1)
 				continue
 			}
 

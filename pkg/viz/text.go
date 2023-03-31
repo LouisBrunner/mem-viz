@@ -57,6 +57,7 @@ func (me *outputter) Text(m contracts.MemoryBlock) error {
 	formatUnused := fmt.Sprintf("%s-%s %s %%sUNUSED\n", formatAddr, formatAddr, formatSize)
 
 	parentsEnd := map[int]uintptr{}
+	hidden := map[int]bool{}
 
 	flushUnused := func(from, to uintptr, depth int) {
 		if !showUnused || from == 0 || from >= to {
@@ -105,10 +106,12 @@ func (me *outputter) Text(m contracts.MemoryBlock) error {
 
 	lastAddress := uintptr(0)
 	err := commons.VisitEachBlock(&m, func(ctx commons.VisitContext, block *contracts.MemoryBlock) error {
-		flushEach(block.Address, lastAddress, ctx.Depth)
-
 		size := block.GetSize()
-		if ctx.Parent == nil || thresholdsArrayTooBig == 0 || len(ctx.Parent.Content) < thresholdsArrayTooBig {
+
+		if ctx.Parent == nil || thresholdsArrayTooBig == 0 || (len(ctx.Parent.Content) < thresholdsArrayTooBig && !hidden[ctx.Depth-1]) {
+			hidden[ctx.Depth] = false
+			flushEach(block.Address, lastAddress, ctx.Depth)
+
 			linksSuffix := ""
 			if showLinks {
 				linksSuffixes := []string{}
@@ -133,6 +136,8 @@ func (me *outputter) Text(m contracts.MemoryBlock) error {
 				details = fmt.Sprintf(" {%s}", strings.Join(detailsList, ","))
 			}
 			builder.Writef(formatMem, block.Address, block.Address+uintptr(size), humanize.Bytes(size), indent(ctx.Depth, indentStr), block.Name, details, linksSuffix)
+		} else {
+			hidden[ctx.Depth] = true
 		}
 
 		lastAddress = block.Address + uintptr(size)

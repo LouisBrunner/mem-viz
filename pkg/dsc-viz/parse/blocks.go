@@ -8,10 +8,23 @@ import (
 	subcontracts "github.com/LouisBrunner/mem-viz/pkg/dsc-viz/contracts"
 )
 
+func (me *parser) findBestParent(parent *contracts.MemoryBlock, offset subcontracts.Address, err error) (*contracts.MemoryBlock, uintptr, error) {
+	address := offset.AddBase(parent.Address).Calculate(me.slide)
+	if address >= parent.Address {
+		return parent, address, nil
+	}
+	gparent, found := me.parents[parent]
+	if !found {
+		return nil, 0, err
+	}
+	return me.findBestParent(gparent, offset, err)
+}
+
 func (me *parser) createCommonBlock(parent *contracts.MemoryBlock, label string, offset subcontracts.Address, size uint64) (*contracts.MemoryBlock, error) {
 	address := offset.AddBase(parent.Address).Calculate(me.slide)
-	if address < parent.Address {
-		return nil, fmt.Errorf("address of %q (%#016x) is before parent %q (%#016x)", label, address, parent.Name, parent.Address)
+	parent, address, err := me.findBestParent(parent, offset, fmt.Errorf("address of %q (%#016x) is before parent %q (%#016x) or any of its parents", label, address, parent.Name, parent.Address))
+	if err != nil {
+		return nil, err
 	}
 	block := &contracts.MemoryBlock{
 		Name:         label,
@@ -19,6 +32,7 @@ func (me *parser) createCommonBlock(parent *contracts.MemoryBlock, label string,
 		Size:         size,
 		ParentOffset: uint64(address - parent.Address),
 	}
+	me.parents[block] = parent
 	addChild(parent, block)
 	return block, nil
 }
