@@ -6,6 +6,7 @@ setup:
 .PHONY: setup
 
 lint:
+	gofmt -d -e -s .
 	go vet ./...
 	go run honnef.co/go/tools/cmd/staticcheck ./...
 .PHONY: lint

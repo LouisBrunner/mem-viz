@@ -45,7 +45,7 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 			return nil, nil, err
 		}
 	}
-	_, err = me.createBlobBlock(frame, "CodeSignatureOffset", header.CodeSignatureOffset, "CodeSignatureSize", header.CodeSignatureSize, "Code Signature")
+	cs, err := me.createBlobBlock(frame, "CodeSignatureOffset", header.CodeSignatureOffset, "CodeSignatureSize", header.CodeSignatureSize, "Code Signature")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -176,7 +176,12 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 	if okV2 {
 		return block, headerBlock, nil
 	}
-	_, err = me.createBlobBlock(frame, "ObjcOptsOffset", header.ObjcOptsOffset, "ObjcOptsSize", header.ObjcOptsSize, "Objective-C Optimizations Header")
+	objcOptsAddr := header.ObjcOptsOffset.AddBase(frame.parent.Address).Calculate(me.slide)
+	objcOptsSize := header.ObjcOptsSize
+	if objcOptsAddr+uintptr(objcOptsSize) > cs.Address { // FIXME: amd64 has overlapping CS and ObjcOpts, somehow?
+		objcOptsSize = uint64(cs.Address - objcOptsAddr)
+	}
+	_, err = me.createBlobBlock(frame, "ObjcOptsOffset", header.ObjcOptsOffset, "ObjcOptsSize", objcOptsSize, "Objective-C Optimizations Header")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -185,7 +190,11 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 		return nil, nil, err
 	}
 	dcdd := subcontracts.DYLDCacheDynamicDataHeader{}
-	dcddBlock, dcddHeaderBlock, err := me.parseAndAddBlob(frame, "DynamicDataOffset", header.DynamicDataOffset, "DynamicDataMaxSize", header.DynamicDataMaxSize, &dcdd, "DYLD Cache Dynamic Data")
+	dcddSize := header.DynamicDataMaxSize
+	if dcddSize > 0x400000 { // FIXME: amd64 has some super large values (Petabytes), no idea why and DYLD mostly seems to ignore the value?
+		dcddSize = 0x1000
+	}
+	dcddBlock, dcddHeaderBlock, err := me.parseAndAddBlob(frame, "DynamicDataOffset", header.DynamicDataOffset, "DynamicDataMaxSize", dcddSize, &dcdd, "DYLD Cache Dynamic Data")
 	if err != nil {
 		return nil, nil, err
 	}

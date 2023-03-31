@@ -55,6 +55,11 @@ func work[T any](worker Worker[T], userParams T) error {
 	}
 
 	err = checker.Check(logger, mb)
+	// FIXME: gross? genius? both?
+	if os.Getenv("DEBUG_OVERRIDE_CHECKER") != "" && err != nil {
+		logger.WithError(err).Warn("DEBUG_OVERRIDE_CHECKER is set, ignoring errors")
+		err = nil
+	}
 	if err != nil {
 		if mbInternal {
 			message := "internal error, the front-end has generated an invalid memory map"

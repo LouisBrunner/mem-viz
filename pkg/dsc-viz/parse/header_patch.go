@@ -2,6 +2,7 @@ package parse
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/LouisBrunner/mem-viz/pkg/commons"
 	"github.com/LouisBrunner/mem-viz/pkg/contracts"
@@ -26,6 +27,14 @@ func (me *parser) parsePatchInfo(frame *blockFrame, header subcontracts.DYLDCach
 	patchHeader := subcontracts.DYLDCachePatchInfo{}
 	err := commons.Unpack(reader, &patchHeader)
 	if err != nil {
+		// FIXME: when reading from files, we need to read the patch table from the last subcache (I think)
+		if err == io.EOF {
+			_, err := me.createBlobBlock(frame, "PatchInfoAddr", header.PatchInfoAddr, "PatchInfoSize", header.PatchInfoSize, "Patch Info (?)")
+			if err != nil {
+				return err
+			}
+			return nil
+		}
 		return err
 	}
 

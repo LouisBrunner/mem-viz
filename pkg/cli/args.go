@@ -20,11 +20,15 @@ type Args struct {
 }
 
 var fromSources = []string{
-	"from-json-file",
+	"from-json",
 	"from-json-text",
 }
 
-var FromCommonSourcesHelp = strings.Join(commons.MapSlice(fromSources, strconv.Quote), ", ")
+func quoteAndDashes(s string) string {
+	return fmt.Sprintf("--%s", strconv.Quote(s))
+}
+
+var FromCommonSourcesHelp = strings.Join(commons.MapSlice(fromSources, quoteAndDashes), ", ")
 
 const (
 	OutputFormatGraphviz = "graphviz"
@@ -107,7 +111,7 @@ func ParseArgs[T any](params *Args, userParams *T, addMore func(params *T), addF
 		fromFlagsCount[flag] += 1
 	}
 
-	var fromSourcesHelp = strings.Join(commons.MapSlice(append(fromSources, names...), strconv.Quote), ", ")
+	var fromSourcesHelp = strings.Join(commons.MapSlice(append(fromSources, names...), quoteAndDashes), ", ")
 	if fromFlagsCount[true] > 1 {
 		return fmt.Errorf("cannot specify more than one of %s", fromSourcesHelp)
 	}

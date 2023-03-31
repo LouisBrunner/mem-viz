@@ -2,7 +2,6 @@ package checker
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/LouisBrunner/mem-viz/pkg/commons"
 	"github.com/LouisBrunner/mem-viz/pkg/contracts"
@@ -18,7 +17,7 @@ func valueDetails(value *contracts.MemoryValue) string {
 }
 
 func Check(logger *logrus.Logger, mb *contracts.MemoryBlock) error {
-	err := commons.VisitEachBlock(mb, func(ctx commons.VisitContext, block *contracts.MemoryBlock) error {
+	return commons.VisitEachBlock(mb, func(ctx commons.VisitContext, block *contracts.MemoryBlock) error {
 		size := uintptr(block.GetSize())
 		parentEnd := block.Address + size
 
@@ -53,12 +52,4 @@ func Check(logger *logrus.Logger, mb *contracts.MemoryBlock) error {
 
 		return nil
 	})
-
-	// FIXME: gross? genius? both?
-	if os.Getenv("DEBUG_OVERRIDE_CHECKER") != "" {
-		logger.WithError(err).Warn("DEBUG_OVERRIDE_CHECKER is set, ignoring errors")
-		err = nil
-	}
-
-	return err
 }
