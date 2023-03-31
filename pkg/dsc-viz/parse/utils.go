@@ -160,3 +160,19 @@ func formatValue(name string, value interface{}) string {
 	}
 	return fmt.Sprintf("%v", value)
 }
+
+func addressIn(addr uintptr, block *contracts.MemoryBlock) bool {
+	return block.Address <= addr && addr < block.Address+uintptr(block.GetSize())
+}
+
+func collidesWithAux(first, second *contracts.MemoryBlock) bool {
+	return addressIn(first.Address, second) || addressIn(first.Address+uintptr(first.GetSize())-1, second)
+}
+
+func collidesWith(first, second *contracts.MemoryBlock) bool {
+	return collidesWithAux(first, second) || collidesWithAux(second, first)
+}
+
+func isInsideOf(child, parent *contracts.MemoryBlock) bool {
+	return parent.Address <= child.Address && child.Address+uintptr(child.GetSize()) < parent.Address+uintptr(parent.GetSize())
+}

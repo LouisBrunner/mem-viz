@@ -76,20 +76,24 @@ func (me *parser) parse(fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, e
 
 func rebalance(root *contracts.MemoryBlock) {
 	commons.VisitEachBlock(root, func(ctx commons.VisitContext, block *contracts.MemoryBlock) error {
-		for i := 0; i < len(block.Content); i += 1 {
+		// top:
+		for i := 0; i < len(block.Content); {
 			child := block.Content[i]
 			if i >= len(block.Content)-1 {
 				break
 			}
-			previousChild := block.Content[i+1]
-			for i := 0; i < len(child.Content); {
-				gchild := child.Content[i]
-				if gchild.Address+uintptr(gchild.GetSize()) > previousChild.Address {
-					moveChild(child, block, i)
-					continue
-				}
-				i += 1
+			nextChild := block.Content[i+1]
+
+			if isInsideOf(nextChild, child) {
+				moveChild(block, child, i+1)
+				continue
 			}
+			if isInsideOf(child, nextChild) {
+				moveChild(block, nextChild, i)
+				continue
+			}
+
+			i += 1
 		}
 		return nil
 	})

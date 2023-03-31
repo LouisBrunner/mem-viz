@@ -143,7 +143,7 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 	if err != nil {
 		return nil, nil, err
 	}
-	mappingBlocks, err = me.parseMappingsWithSlide(frame, mappingsWithSlide, mappingBlocks)
+	_, err = me.parseMappingsWithSlide(frame, mappingsWithSlide, mappingBlocks)
 	if err != nil {
 		return nil, nil, err
 	}

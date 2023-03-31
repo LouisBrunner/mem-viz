@@ -181,11 +181,10 @@ func (me *parser) parseMappingCommon(frame *blockFrame, mapping *contracts.Memor
 	}
 
 	if prevMapping == nil {
-		// TODO: need to fix rebalancing
-		// prevMapping, err = me.createCommonBlock(sideFrame.parent, mappingHeader.Block.Name, mapping.Address, mapping.Size)
-		// if err != nil {
-		// 	return nil, err
-		// }
+		prevMapping, err = me.createCommonBlock(sideFrame.parent, mapping.Name, data.Address, data.Size)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return prevMapping, nil
