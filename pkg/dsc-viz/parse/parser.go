@@ -39,9 +39,16 @@ func Parse(logger *logrus.Logger, fetcher subcontracts.Fetcher) (*contracts.Memo
 
 func (me *parser) parse(fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, error) {
 	root := &contracts.MemoryBlock{
-		Name:    "DSC",
-		Address: fetcher.BaseAddress(),
+		Name:         "DSC",
+		Address:      fetcher.BaseAddress(),
+		ParentOffset: uint64(fetcher.BaseAddress()),
 	}
+	mem := &contracts.MemoryBlock{
+		Name:    "Memory",
+		Address: 0,
+		Content: []*contracts.MemoryBlock{root},
+	}
+	me.parents[root] = mem
 
 	mainHeader := fetcher.Header()
 	mainBlock, headerBlock, err := me.addCache(root, fetcher, "Main Header", subcontracts.ManualAddress(0))
@@ -72,9 +79,9 @@ func (me *parser) parse(fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, e
 		}
 	}
 
-	rebalance(root)
+	rebalance(mem)
 
-	return root, nil
+	return mem, nil
 }
 
 func rebalance(root *contracts.MemoryBlock) {

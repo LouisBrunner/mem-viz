@@ -30,6 +30,7 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 
 	frame := topFrame(cache, block, headerBlock)
 	var pathsBlock *contracts.MemoryBlock
+	var imgsBlocks []*contracts.MemoryBlock
 	var mappingBlocks []*contracts.MemoryBlock
 	_, mappings, err := me.parseAndAddArray(frame, "MappingOffset", header.MappingOffset, "MappingCount", uint64(header.MappingCount), &subcontracts.DYLDCacheMappingInfo{}, "Mappings")
 	if err != nil {
@@ -44,7 +45,7 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 		if err != nil {
 			return nil, nil, err
 		}
-		pathsBlock, err = me.parseImages(frame, imgs, pathsBlock)
+		pathsBlock, imgsBlocks, err = me.parseImages(frame, imgs, pathsBlock, imgsBlocks)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -92,7 +93,7 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 	if err != nil {
 		return nil, nil, err
 	}
-	pathsBlock, err = me.parseImageTexts(frame, imgTexts, pathsBlock)
+	pathsBlock, imgsBlocks, err = me.parseImageTexts(frame, imgTexts, pathsBlock, imgsBlocks)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -175,7 +176,7 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 	if err != nil {
 		return nil, nil, err
 	}
-	_, err = me.parseImages(frame, imgs, pathsBlock)
+	_, _, err = me.parseImages(frame, imgs, pathsBlock, imgsBlocks)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -207,7 +208,8 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 		return nil, nil, err
 	}
 	if dcddHeaderBlock != nil && string(dcdd.Magic[:]) != subcontracts.DYLD_SHARED_CACHE_DYNAMIC_DATA_MAGIC {
-		err = findAndRemoveChild(dcddBlock, dcddHeaderBlock)
+		// FIXME: never found a way to make it work 🤷‍♀️
+		err = findAndRemoveChild(frame.parent, dcddBlock)
 		if err != nil {
 			return nil, nil, err
 		}
