@@ -162,10 +162,6 @@ func formatValue(name string, value interface{}) string {
 }
 
 func isInsideOf(child, parent *contracts.MemoryBlock) bool {
-	return parent.Address <= child.Address && child.Address+uintptr(child.GetSize()) < parent.Address+uintptr(parent.GetSize())
-}
-
-func isInsideOfInc(child, parent *contracts.MemoryBlock) bool {
 	return parent.Address <= child.Address && child.Address+uintptr(child.GetSize()) <= parent.Address+uintptr(parent.GetSize())
 }
 

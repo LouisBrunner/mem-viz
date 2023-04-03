@@ -43,15 +43,9 @@ func (me *parser) parse(fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, e
 		Address:      fetcher.BaseAddress(),
 		ParentOffset: uint64(fetcher.BaseAddress()),
 	}
-	mem := &contracts.MemoryBlock{
-		Name:    "Memory",
-		Address: 0,
-		Content: []*contracts.MemoryBlock{root},
-	}
-	me.parents[root] = mem
 
 	mainHeader := fetcher.Header()
-	mainBlock, headerBlock, err := me.addCache(root, fetcher, "Main Header", subcontracts.ManualAddress(0))
+	mainBlock, headerBlock, imgsBlocks, err := me.addCache(root, fetcher, "Main Header", subcontracts.ManualAddress(0), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +63,8 @@ func (me *parser) parse(fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, e
 		if v2 != nil {
 			name = commons.FromCString(v2.FileSuffix[:])
 		}
-		_, subHeaderBlock, err := me.addCache(root, cache, fmt.Sprintf("Sub Cache %s", name), subcontracts.RelativeAddress64(cache.BaseAddress()))
+		var subHeaderBlock *contracts.MemoryBlock
+		_, subHeaderBlock, imgsBlocks, err = me.addCache(root, cache, fmt.Sprintf("Sub Cache %s", name), subcontracts.RelativeAddress64(cache.BaseAddress()), imgsBlocks)
 		if err != nil {
 			return nil, err
 		}
@@ -79,37 +74,58 @@ func (me *parser) parse(fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, e
 		}
 	}
 
-	rebalance(mem)
+	rebalance(root)
 
-	return mem, nil
+	return root, nil
 }
 
 func rebalance(root *contracts.MemoryBlock) {
-	commons.VisitEachBlock(root, func(ctx commons.VisitContext, block *contracts.MemoryBlock) error {
+	moveOutside := func(ctx commons.VisitContext, block *contracts.MemoryBlock) error {
+		if ctx.NextSibling == nil || ctx.Parent == nil {
+			return nil
+		}
+
 		for i := 0; i < len(block.Content); {
 			child := block.Content[i]
-			if i >= len(block.Content)-1 {
-				break
-			}
-			nextChild := block.Content[i+1]
 
-			if isInsideOf(nextChild, child) {
-				moveChild(block, child, i+1)
-				continue
-			}
-			if isInsideOf(child, nextChild) {
-				moveChild(block, nextChild, i)
-				continue
-			}
-
-			if child.Address == nextChild.Address && child.GetSize() == nextChild.GetSize() && child.Name == nextChild.Name {
-				removeChild(block, i+1)
+			if child.Address >= ctx.NextSibling.Address {
+				if isInsideOf(child, ctx.NextSibling) {
+					moveChild(block, ctx.NextSibling, i)
+				} else {
+					moveChild(block, ctx.Parent, i)
+				}
 				continue
 			}
 
 			i += 1
 		}
 		return nil
+	}
+
+	commons.VisitEachBlockAdvanced(root, commons.VisitorSetup{
+		AfterChildren: func(ctx commons.VisitContext, block *contracts.MemoryBlock) error {
+			moveOutside(ctx, block)
+
+			for i := 0; i < len(block.Content); {
+				child := block.Content[i]
+				if i >= len(block.Content)-1 {
+					break
+				}
+				nextChild := block.Content[i+1]
+
+				if isInsideOf(nextChild, child) {
+					moveChild(block, child, i+1)
+					continue
+				}
+				if isInsideOf(child, nextChild) {
+					moveChild(block, nextChild, i)
+					continue
+				}
+
+				i += 1
+			}
+			return nil
+		},
 	})
 }
 

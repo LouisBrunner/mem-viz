@@ -5,6 +5,7 @@ import "github.com/LouisBrunner/mem-viz/pkg/contracts"
 type VisitContext struct {
 	Depth           int
 	PreviousSibling *contracts.MemoryBlock
+	NextSibling     *contracts.MemoryBlock
 	Parent          *contracts.MemoryBlock
 }
 
@@ -14,16 +15,28 @@ type LinkVisitor = func(ctx VisitContext, block *contracts.MemoryBlock, value *c
 
 // FIXME: recursion everywhere... bad!
 
-func visitEachBlockAux(root *contracts.MemoryBlock, ctx VisitContext, visitor BlockVisitor) error {
-	err := visitor(ctx, root)
-	if err != nil {
-		return err
+type VisitorSetup struct {
+	BeforeChildren BlockVisitor
+	AfterChildren  BlockVisitor
+}
+
+func visitEachBlockInternal(root *contracts.MemoryBlock, ctx VisitContext, visitor VisitorSetup) error {
+	if visitor.BeforeChildren != nil {
+		err := visitor.BeforeChildren(ctx, root)
+		if err != nil {
+			return err
+		}
 	}
 	var previousSibling *contracts.MemoryBlock
-	for _, child := range root.Content {
-		err = visitEachBlockAux(child, VisitContext{
+	for i, child := range root.Content {
+		var nextSibling *contracts.MemoryBlock
+		if i < len(root.Content)-1 {
+			nextSibling = root.Content[i+1]
+		}
+		err := visitEachBlockInternal(child, VisitContext{
 			Depth:           ctx.Depth + 1,
 			PreviousSibling: previousSibling,
+			NextSibling:     nextSibling,
 			Parent:          root,
 		}, visitor)
 		if err != nil {
@@ -31,15 +44,29 @@ func visitEachBlockAux(root *contracts.MemoryBlock, ctx VisitContext, visitor Bl
 		}
 		previousSibling = child
 	}
+	if visitor.AfterChildren != nil {
+		err := visitor.AfterChildren(ctx, root)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
-func VisitEachBlock(root *contracts.MemoryBlock, visitor BlockVisitor) error {
-	return visitEachBlockAux(root, VisitContext{
+func VisitEachBlockAdvanced(root *contracts.MemoryBlock, visitor VisitorSetup) error {
+	return visitEachBlockInternal(root, VisitContext{
 		Depth:           0,
 		PreviousSibling: nil,
 		Parent:          nil,
 	}, visitor)
+}
+
+func VisitEachBlock(root *contracts.MemoryBlock, visitor BlockVisitor) error {
+	return visitEachBlockInternal(root, VisitContext{
+		Depth:           0,
+		PreviousSibling: nil,
+		Parent:          nil,
+	}, VisitorSetup{BeforeChildren: visitor})
 }
 
 func VisitEachValue(root *contracts.MemoryBlock, visitor ValueVisitor) error {

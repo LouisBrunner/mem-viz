@@ -71,7 +71,7 @@ func (me *parser) addImageTEXT(frame *blockFrame, image *contracts.MemoryBlock, 
 	absAddr := address.AddBase(frame.parent.Address).Calculate(me.slide)
 	var currBlock *contracts.MemoryBlock
 	for _, imgBlock := range imgBlocks {
-		if isInsideOfInc(&contracts.MemoryBlock{Address: absAddr}, &contracts.MemoryBlock{Address: imgBlock.Address, Size: roundUp(imgBlock.GetSize(), page)}) {
+		if isInsideOf(&contracts.MemoryBlock{Address: absAddr}, &contracts.MemoryBlock{Address: imgBlock.Address, Size: roundUp(imgBlock.GetSize(), page)}) {
 			currBlock = imgBlock
 			break
 		}
@@ -120,7 +120,7 @@ func (me *parser) addImagePath(frame *blockFrame, image, pathBlock *contracts.Me
 	var err error
 
 	absAddr := pathOffset.AddBase(frame.parent.Address).Calculate(me.slide)
-	if pathBlock == nil || !isInsideOfInc(&contracts.MemoryBlock{Address: absAddr}, pathBlock) {
+	if pathBlock == nil || !isInsideOf(&contracts.MemoryBlock{Address: absAddr}, pathBlock) {
 		pathBlock, err = me.createEmptyBlock(frame.parent, "Paths", pathOffset)
 		if err != nil {
 			return nil, err
