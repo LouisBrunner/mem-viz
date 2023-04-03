@@ -69,7 +69,8 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 		return nil, nil, err
 	}
 	// FIXME: is it worth unpacking each uint64 and list them? probably too noisy
-	_, _, err = me.parseAndAddArray(frame, "BranchPoolsOffset", header.BranchPoolsOffset, "BranchPoolsCount", uint64(header.BranchPoolsCount), uint64(1), "Branch Pools")
+	longlong := uint64(0)
+	_, _, err = me.parseAndAddArray(frame, "BranchPoolsOffset", header.BranchPoolsOffset, "BranchPoolsCount", uint64(header.BranchPoolsCount), &longlong, "Branch Pools")
 	if err != nil {
 		return nil, nil, err
 	}

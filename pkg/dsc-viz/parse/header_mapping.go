@@ -89,6 +89,8 @@ func (me *parser) parseMappingWithSlide(frame *blockFrame, mapping arrayElement,
 	}
 
 	title := fmt.Sprintf("%s.Slide Info (V%d)", mapping.Block.Name, versionHeader.Version)
+	short := uint16(0)
+	shortPtr := &short
 
 	sideFrame := frame.siblingFrame(mapping.Block)
 	switch versionHeader.Version {
@@ -98,12 +100,12 @@ func (me *parser) parseMappingWithSlide(frame *blockFrame, mapping arrayElement,
 		if err != nil {
 			return nil, err
 		}
-		subFrame := sideFrame.pushFrame(blob, header)
-		_, _, err = me.parseAndAddArray(subFrame, "TocOffset", slideInfoV1.TocOffset, "TocCount", uint64(slideInfoV1.TocCount), uint16(0), fmt.Sprintf("%s.TOC", title))
+		subFrame := frame.pushFrame(blob, header)
+		_, _, err = me.parseAndAddArray(subFrame, "TocOffset", newAddress+subcontracts.UnslidAddress(slideInfoV1.TocOffset), "TocCount", uint64(slideInfoV1.TocCount), shortPtr, fmt.Sprintf("%s.TOC", title))
 		if err != nil {
 			return nil, err
 		}
-		_, _, err = me.parseAndAddArray(subFrame, "EntriesOffset", slideInfoV1.EntriesOffset, "EntriesCount", uint64(slideInfoV1.EntriesCount), subcontracts.DYLDCacheSlideInfoEntry{}, fmt.Sprintf("%s.Entries", title))
+		_, _, err = me.parseAndAddArray(subFrame, "EntriesOffset", newAddress+subcontracts.UnslidAddress(slideInfoV1.EntriesOffset), "EntriesCount", uint64(slideInfoV1.EntriesCount), subcontracts.DYLDCacheSlideInfoEntry{}, fmt.Sprintf("%s.Entries", title))
 		if err != nil {
 			return nil, err
 		}
@@ -113,12 +115,12 @@ func (me *parser) parseMappingWithSlide(frame *blockFrame, mapping arrayElement,
 		if err != nil {
 			return nil, err
 		}
-		subFrame := sideFrame.pushFrame(blob, header)
-		_, _, err = me.parseAndAddArray(subFrame, "PageStartsOffset", slideInfoV2.PageStartsOffset, "PageStartsCount", uint64(slideInfoV2.PageStartsCount), uint16(0), fmt.Sprintf("%s.Pages", title))
+		subFrame := frame.pushFrame(blob, header)
+		_, _, err = me.parseAndAddArray(subFrame, "PageStartsOffset", newAddress+subcontracts.UnslidAddress(slideInfoV2.PageStartsOffset), "PageStartsCount", uint64(slideInfoV2.PageStartsCount), shortPtr, fmt.Sprintf("%s.Pages", title))
 		if err != nil {
 			return nil, err
 		}
-		_, _, err = me.parseAndAddArray(subFrame, "PageExtrasOffset", slideInfoV2.PageExtrasOffset, "PageExtrasCount", uint64(slideInfoV2.PageExtrasCount), uint16(0), fmt.Sprintf("%s.Extra Pages", title))
+		_, _, err = me.parseAndAddArray(subFrame, "PageExtrasOffset", newAddress+subcontracts.UnslidAddress(slideInfoV2.PageExtrasOffset), "PageExtrasCount", uint64(slideInfoV2.PageExtrasCount), shortPtr, fmt.Sprintf("%s.Extra Pages", title))
 		if err != nil {
 			return nil, err
 		}
@@ -128,9 +130,8 @@ func (me *parser) parseMappingWithSlide(frame *blockFrame, mapping arrayElement,
 		if err != nil {
 			return nil, err
 		}
-		subFrame := sideFrame.pushFrame(blob, header)
-		subFrame.offsetFromStart = 0 // FIXME: offset calculation might be wrong for V1, V2 and V4
-		_, _, err = me.parseAndAddArray(subFrame, "", subcontracts.RelativeAddress32(unsafe.Sizeof(*slideInfoV3)), "PageStartsCount", uint64(slideInfoV3.PageStartsCount), uint16(0), fmt.Sprintf("%s.Pages", title))
+		subFrame := frame.pushFrame(blob, header)
+		_, _, err = me.parseAndAddArray(subFrame, "", newAddress+subcontracts.UnslidAddress(unsafe.Sizeof(*slideInfoV3)), "PageStartsCount", uint64(slideInfoV3.PageStartsCount), shortPtr, fmt.Sprintf("%s.Pages", title))
 		if err != nil {
 			return nil, err
 		}
@@ -140,12 +141,12 @@ func (me *parser) parseMappingWithSlide(frame *blockFrame, mapping arrayElement,
 		if err != nil {
 			return nil, err
 		}
-		subFrame := sideFrame.pushFrame(blob, header)
-		_, _, err = me.parseAndAddArray(subFrame, "PageStartsOffset", slideInfoV4.PageStartsOffset, "PageStartsCount", uint64(slideInfoV4.PageStartsCount), uint16(0), fmt.Sprintf("%s.Pages", title))
+		subFrame := frame.pushFrame(blob, header)
+		_, _, err = me.parseAndAddArray(subFrame, "PageStartsOffset", newAddress+subcontracts.UnslidAddress(slideInfoV4.PageStartsOffset), "PageStartsCount", uint64(slideInfoV4.PageStartsCount), shortPtr, fmt.Sprintf("%s.Pages", title))
 		if err != nil {
 			return nil, err
 		}
-		_, _, err = me.parseAndAddArray(subFrame, "PageExtrasOffset", slideInfoV4.PageExtrasOffset, "PageExtrasCount", uint64(slideInfoV4.PageExtrasCount), uint16(0), fmt.Sprintf("%s.Extra Pages", title))
+		_, _, err = me.parseAndAddArray(subFrame, "PageExtrasOffset", newAddress+subcontracts.UnslidAddress(slideInfoV4.PageExtrasOffset), "PageExtrasCount", uint64(slideInfoV4.PageExtrasCount), shortPtr, fmt.Sprintf("%s.Extra Pages", title))
 		if err != nil {
 			return nil, err
 		}

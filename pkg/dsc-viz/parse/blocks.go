@@ -46,6 +46,11 @@ func (me *parser) createStructBlock(parent *contracts.MemoryBlock, data any, lab
 		return nil, err
 	}
 
+	if typ.Kind() != reflect.Struct {
+		addValue(block, "Value", val.Interface(), 0, uint8(typ.Size()))
+		return block, nil
+	}
+
 	for _, field := range reflect.VisibleFields(typ) {
 		fieldType := field.Type
 		if fieldType.Kind() == reflect.Struct && field.Anonymous {
