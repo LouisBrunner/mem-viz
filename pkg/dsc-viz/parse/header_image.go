@@ -113,6 +113,8 @@ func (me *parser) addImageTEXT(frame *blockFrame, image *contracts.MemoryBlock, 
 		return nil, err
 	}
 	currBlock.Name = fmt.Sprintf("Images TEXT (%d)", len(currBlock.Content))
+	currBlock.Size = 0
+	currBlock.Size = currBlock.GetSize()
 	return imgBlocks, nil
 }
 
@@ -146,5 +148,7 @@ func (me *parser) addImagePath(frame *blockFrame, image, pathBlock *contracts.Me
 		return nil, err
 	}
 	pathBlock.Name = fmt.Sprintf("Paths (%d)", len(pathBlock.Content))
+	pathBlock.Size = 0
+	pathBlock.Size = pathBlock.GetSize()
 	return pathBlock, nil
 }

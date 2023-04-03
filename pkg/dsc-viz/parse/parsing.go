@@ -31,7 +31,7 @@ func (me *parser) parseAndAddArray(frame *blockFrame, fieldName string, offset s
 	}
 
 	arrayBlock, offset, size, err := me.createArrayBlock(frame, fieldName, offset, countFieldName, count, data, label, func(label string, offset subcontracts.Address, size uint64) (*contracts.MemoryBlock, error) {
-		return me.createEmptyBlock(frame.parent, label, offset)
+		return me.createCommonBlock(frame.parent, label, offset, size)
 	})
 	if err != nil {
 		return nil, nil, err

@@ -2,11 +2,14 @@ package parse
 
 import (
 	"fmt"
+	"unsafe"
 
 	"github.com/LouisBrunner/mem-viz/pkg/commons"
 	"github.com/LouisBrunner/mem-viz/pkg/contracts"
 	subcontracts "github.com/LouisBrunner/mem-viz/pkg/dsc-viz/contracts"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 )
 
 type parser struct {
@@ -50,83 +53,126 @@ func (me *parser) parse(fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, e
 		return nil, err
 	}
 
-	var subCacheEntries *contracts.MemoryBlock
-	if l := len(fetcher.SubCaches()); l > 0 {
-		subCacheEntries, err = me.createEmptyBlock(mainBlock, fmt.Sprintf("Subcache Entries (%d)", l), mainHeader.SubCacheArrayOffset)
-		if err != nil {
-			return nil, err
-		}
+	anchors := map[*contracts.MemoryBlock]struct{}{
+		mainBlock: {},
 	}
+
+	subCacheEntriesFn := make([]func(*contracts.MemoryBlock) error, 0, len(fetcher.SubCaches()))
+	subCacheSize := uint64(0)
 	for i, cache := range fetcher.SubCaches() {
 		v2, v1 := cache.SubCacheHeader()
 		name := fmt.Sprintf("%d", i+1)
 		if v2 != nil {
 			name = commons.FromCString(v2.FileSuffix[:])
 		}
-		var subHeaderBlock *contracts.MemoryBlock
-		_, subHeaderBlock, imgsBlocks, err = me.addCache(root, cache, fmt.Sprintf("Sub Cache %s", name), subcontracts.RelativeAddress64(cache.BaseAddress()), imgsBlocks)
+		var subBlock, subHeaderBlock *contracts.MemoryBlock
+		subBlock, subHeaderBlock, imgsBlocks, err = me.addCache(root, cache, fmt.Sprintf("Sub Cache %s", name), subcontracts.RelativeAddress64(cache.BaseAddress()), imgsBlocks)
 		if err != nil {
 			return nil, err
 		}
-		err = me.addSubCacheEntry(subCacheEntries, headerBlock, subHeaderBlock, fetcher.Header(), v2, v1, uint64(i))
+		anchors[subBlock] = struct{}{}
+
+		if v2 != nil {
+			subCacheSize += uint64(unsafe.Sizeof(*v2))
+		} else if v1 != nil {
+			subCacheSize += uint64(unsafe.Sizeof(*v1))
+		}
+
+		subCacheEntriesFn = append(subCacheEntriesFn, func(i uint64) func(subCacheEntries *contracts.MemoryBlock) error {
+			return func(subCacheEntries *contracts.MemoryBlock) error {
+				return me.addSubCacheEntry(subCacheEntries, headerBlock, subHeaderBlock, fetcher.Header(), v2, v1, uint64(i))
+			}
+		}(uint64(i)))
+	}
+
+	if len(subCacheEntriesFn) > 0 {
+		// A bit convoluted but it allows to have the size inside the block instead of an empty block (which is for more loose grouping)
+		subCacheEntries, err := me.createCommonBlock(mainBlock, fmt.Sprintf("Subcache Entries (%d)", len(subCacheEntriesFn)), mainHeader.SubCacheArrayOffset, subCacheSize)
 		if err != nil {
 			return nil, err
+		}
+		for _, fn := range subCacheEntriesFn {
+			err = fn(subCacheEntries)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
-	rebalance(root)
+	rebalance(root, anchors)
 
 	return root, nil
 }
 
-func rebalance(root *contracts.MemoryBlock) {
-	moveOutside := func(ctx commons.VisitContext, block *contracts.MemoryBlock) error {
-		if ctx.NextSibling == nil || ctx.Parent == nil {
-			return nil
-		}
-
-		for i := 0; i < len(block.Content); {
-			child := block.Content[i]
-
-			if child.Address >= ctx.NextSibling.Address {
-				if isInsideOf(child, ctx.NextSibling) {
-					moveChild(block, ctx.NextSibling, i)
-				} else {
-					moveChild(block, ctx.Parent, i)
-				}
-				continue
-			}
-
-			i += 1
-		}
-		return nil
+// FIXME: very wasteful but always gives the right result
+func rebalance(root *contracts.MemoryBlock, anchors map[*contracts.MemoryBlock]struct{}) {
+	isAnchor := func(block *contracts.MemoryBlock) bool {
+		_, ok := anchors[block]
+		return ok
 	}
+
+	allBlocks := map[uintptr]*[]*contracts.MemoryBlock{}
 
 	commons.VisitEachBlockAdvanced(root, commons.VisitorSetup{
 		AfterChildren: func(ctx commons.VisitContext, block *contracts.MemoryBlock) error {
-			moveOutside(ctx, block)
+			if block == root || isAnchor(block) {
+				if block != root {
+					block.Content = []*contracts.MemoryBlock{}
+				}
+				return nil
+			}
 
-			for i := 0; i < len(block.Content); {
-				child := block.Content[i]
-				if i >= len(block.Content)-1 {
+			sameAddress, found := allBlocks[block.Address]
+			if !found {
+				sameAddress = &[]*contracts.MemoryBlock{}
+				allBlocks[block.Address] = sameAddress
+			}
+
+			size := block.GetSize()
+			added := false
+			for i, curr := range *sameAddress {
+				currSize := curr.GetSize()
+				if block.Size == 0 || size > currSize || (size == currSize && len(block.Values) < len(curr.Values)) {
+					*sameAddress = slices.Insert(*sameAddress, i, block)
+					added = true
 					break
 				}
-				nextChild := block.Content[i+1]
-
-				if isInsideOf(nextChild, child) {
-					moveChild(block, child, i+1)
-					continue
-				}
-				if isInsideOf(child, nextChild) {
-					moveChild(block, nextChild, i)
-					continue
-				}
-
-				i += 1
 			}
+			if !added {
+				*sameAddress = append(*sameAddress, block)
+			}
+
+			block.Content = []*contracts.MemoryBlock{}
+
 			return nil
 		},
 	})
+
+	addresses := maps.Keys(allBlocks)
+	slices.Sort(addresses)
+
+	if len(root.Content) < 1 {
+		return
+	}
+
+	baseAnchor := 0
+	for _, address := range addresses {
+		anchor := baseAnchor
+		for i := baseAnchor; i < len(root.Content); i += 1 {
+			if root.Content[i].Address > address {
+				break
+			}
+			anchor = i
+		}
+		baseAnchor = anchor
+
+		parent := root.Content[anchor]
+		sameAddress := allBlocks[address]
+		for _, block := range *sameAddress {
+			newParent := addChildDeep(parent, block)
+			block.ParentOffset = uint64(block.Address - newParent.Address)
+		}
+	}
 }
 
 func calculateSlide(cache subcontracts.Cache, header subcontracts.DYLDCacheHeaderV3) (uint64, error) {

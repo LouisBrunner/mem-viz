@@ -27,9 +27,9 @@ func visitEachBlockInternal(root *contracts.MemoryBlock, ctx VisitContext, visit
 			return err
 		}
 	}
-	var previousSibling *contracts.MemoryBlock
+	previousSibling := ctx.PreviousSibling
 	for i, child := range root.Content {
-		var nextSibling *contracts.MemoryBlock
+		nextSibling := ctx.NextSibling
 		if i < len(root.Content)-1 {
 			nextSibling = root.Content[i+1]
 		}

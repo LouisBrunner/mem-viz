@@ -42,6 +42,19 @@ func readCString(r io.Reader) string {
 	return string(b)
 }
 
+func addChildDeep(parent, child *contracts.MemoryBlock) *contracts.MemoryBlock {
+	for i, curr := range parent.Content {
+		if isInsideOf(child, curr) {
+			return addChildDeep(curr, child)
+		} else if curr.Address > child.Address {
+			parent.Content = slices.Insert(parent.Content, i, child)
+			return parent
+		}
+	}
+	parent.Content = append(parent.Content, child)
+	return parent
+}
+
 func addChild(parent, child *contracts.MemoryBlock) {
 	for i, curr := range parent.Content {
 		if curr.Address > child.Address {
@@ -66,12 +79,6 @@ func removeChild(parent *contracts.MemoryBlock, childIndex int) *contracts.Memor
 	child := parent.Content[childIndex]
 	parent.Content = slices.Delete(parent.Content, childIndex, childIndex+1)
 	return child
-}
-
-func moveChild(parent, newParent *contracts.MemoryBlock, childIndex int) {
-	child := removeChild(parent, childIndex)
-	child.ParentOffset = uint64(child.Address - newParent.Address)
-	addChild(newParent, child)
 }
 
 func addLinkCommon(parent *contracts.MemoryBlock, parentValueName, linkName string, addr uintptr) error {

@@ -49,7 +49,7 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 			return nil, nil, nil, err
 		}
 	}
-	cs, err := me.createBlobBlock(frame, "CodeSignatureOffset", header.CodeSignatureOffset, "CodeSignatureSize", header.CodeSignatureSize, "Code Signature")
+	_, err = me.createBlobBlock(frame, "CodeSignatureOffset", header.CodeSignatureOffset, "CodeSignatureSize", header.CodeSignatureSize, "Code Signature")
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -183,17 +183,11 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 	if okV2 {
 		return block, headerBlock, imgsBlocks, nil
 	}
-	objcOptsSize := header.ObjcOptsSize
-	if cs != nil {
-		objcOptsAddr := header.ObjcOptsOffset.AddBase(frame.parent.Address).Calculate(me.slide)
-		if cs.Address > objcOptsAddr && objcOptsAddr+uintptr(objcOptsSize) > cs.Address { // FIXME: amd64 has overlapping CS and ObjcOpts, somehow?
-			objcOptsSize = uint64(cs.Address - objcOptsAddr)
-		}
-	}
-	_, err = me.createBlobBlock(frame, "ObjcOptsOffset", header.ObjcOptsOffset, "ObjcOptsSize", objcOptsSize, "Objective-C Optimizations Header")
-	if err != nil {
-		return nil, nil, nil, err
-	}
+	// FIXME: it's often wrong, conflicting with other parts of memory, CodeSignature, Mapping 4, etc (especially on amd64)
+	// _, err = me.createBlobBlock(frame, "ObjcOptsOffset", header.ObjcOptsOffset, "ObjcOptsSize", header.ObjcOptsSize, "Objective-C Optimizations Header")
+	// if err != nil {
+	// 	return nil, nil, nil, err
+	// }
 	_, err = me.createBlobBlock(frame, "CacheAtlasOffset", header.CacheAtlasOffset, "CacheAtlasSize", header.CacheAtlasSize, "Cache Atlas")
 	if err != nil {
 		return nil, nil, nil, err
