@@ -84,7 +84,6 @@ func (me *parser) addImageTEXT(frame *blockFrame, image *contracts.MemoryBlock, 
 		imgBlocks = append(imgBlocks, currBlock)
 	}
 
-	// TODO: should we add a struct (MH?)
 	if size == 0 {
 		sideFrame := frame.siblingFrame(image)
 		err = me.addLinkWithOffset(sideFrame, addressName, address, "points to")
@@ -108,10 +107,15 @@ func (me *parser) addImageTEXT(frame *blockFrame, image *contracts.MemoryBlock, 
 		}
 	}
 
-	_, err = me.createBlobBlock(imgFrame, addressName, address, sizeName, size, fmt.Sprintf("%s TEXT", path))
+	text, err := me.createBlobBlock(imgFrame, addressName, address, sizeName, size, fmt.Sprintf("%s TEXT", path))
 	if err != nil {
 		return nil, err
 	}
+	_, err = me.parseMachO(imgFrame, text, path)
+	if err != nil {
+		return nil, err
+	}
+
 	currBlock.Name = fmt.Sprintf("Images TEXT (%d)", len(currBlock.Content))
 	currBlock.Size = 0
 	currBlock.Size = currBlock.GetSize()

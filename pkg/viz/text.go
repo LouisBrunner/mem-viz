@@ -15,7 +15,7 @@ import (
 
 func (me *outputter) Text(m contracts.MemoryBlock) error {
 	// TODO: make this configurable on (mem|dsc)-viz
-	const thresholdsArrayTooBig = 100
+	const thresholdsArrayTooBig = 10000
 	const showLinks = true
 	const showHiddenLinks = false
 	const showProperties = true

@@ -9,7 +9,8 @@ import (
 	subcontracts "github.com/LouisBrunner/mem-viz/pkg/dsc-viz/contracts"
 )
 
-func (me *parser) parseAndAdd(r io.Reader, parent *contracts.MemoryBlock, from *contracts.MemoryBlock, offset subcontracts.Address, data any, label string) (*contracts.MemoryBlock, error) {
+// FIXME: we should move GetReader calls here
+func (me *parser) parseAndAdd(r io.Reader, parent *contracts.MemoryBlock, offset subcontracts.Address, data any, label string) (*contracts.MemoryBlock, error) {
 	err := commons.Unpack(r, data)
 	if err != nil {
 		return nil, err
@@ -43,7 +44,7 @@ func (me *parser) parseAndAddArray(frame *blockFrame, fieldName string, offset s
 	items := make([]arrayElement, 0, count)
 	for i := uint64(0); i < count; i += 1 {
 		itemOffset := i * size
-		block, err := me.parseAndAdd(offset.GetReader(frame.cache, itemOffset, me.slide), arrayBlock, frame.parentStruct, subcontracts.RelativeAddress64(itemOffset), data, fmt.Sprintf("%s %d/%d", label, i+1, count))
+		block, err := me.parseAndAdd(offset.GetReader(frame.cache, itemOffset, me.slide), arrayBlock, subcontracts.RelativeAddress64(itemOffset), data, fmt.Sprintf("%s %d/%d", label, i+1, count))
 		if err != nil {
 			return nil, nil, err
 		}
@@ -61,7 +62,7 @@ func (me *parser) parseAndAddBlob(frame *blockFrame, fieldName string, offset su
 	if blob == nil {
 		return nil, nil, nil
 	}
-	header, err := me.parseAndAdd(offset.GetReader(frame.cache, 0, me.slide), blob, frame.parent, subcontracts.ManualAddress(0), data, fmt.Sprintf("%s Header", label))
+	header, err := me.parseAndAdd(offset.GetReader(frame.cache, 0, me.slide), blob, subcontracts.ManualAddress(0), data, fmt.Sprintf("%s Header", label))
 	if err != nil {
 		return nil, nil, nil
 	}

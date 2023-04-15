@@ -7,13 +7,13 @@ import "fmt"
 // The 32-bit mach header appears at the very beginning of the object file for
 // 32-bit architectures.
 type MachHeader struct {
-	Magic      uint32 // mach magic number identifier
-	CPUType    int32  // cpu specifier
-	CPUSubType int32  // machine specifier
-	FileType   uint32 // type of file
-	NCmds      uint32 // number of load commands
-	SizeOfCmds uint32 // the size of all the load commands
-	Flags      uint32 // flags
+	Magic      uint32 `struc:"little"` // mach magic number identifier
+	CPUType    int32  `struc:"little"` // cpu specifier
+	CPUSubType int32  `struc:"little"` // machine specifier
+	FileType   uint32 `struc:"little"` // type of file
+	NCmds      uint32 `struc:"little"` // number of load commands
+	SizeOfCmds uint32 `struc:"little"` // the size of all the load commands
+	Flags      uint32 `struc:"little"` // flags
 }
 
 // Constant for the magic field of the mach_header (32-bit architectures)
@@ -25,14 +25,14 @@ const (
 // The 64-bit mach header appears at the very beginning of object files for
 // 64-bit architectures.
 type MachHeader64 struct {
-	Magic      uint32 // mach magic number identifier
-	CPUType    int32  // cpu specifier
-	CPUSubType int32  // machine specifier
-	FileType   uint32 // type of file
-	NCmds      uint32 // number of load commands
-	SizeOfCmds uint32 // the size of all the load commands
-	Flags      uint32 // flags
-	Reserved   uint32 // reserved
+	Magic      uint32 `struc:"little"` // mach magic number identifier
+	CPUType    int32  `struc:"little"` // cpu specifier
+	CPUSubType int32  `struc:"little"` // machine specifier
+	FileType   uint32 `struc:"little"` // type of file
+	NCmds      uint32 `struc:"little"` // number of load commands
+	SizeOfCmds uint32 `struc:"little"` // the size of all the load commands
+	Flags      uint32 `struc:"little"` // flags
+	Reserved   uint32 `struc:"little"` // reserved
 }
 
 // Constant for the magic field of the mach_header_64 (64-bit architectures)
@@ -126,8 +126,8 @@ const (
 // to these tables will not work well or at all on some machines.  With all
 // padding zeroed like objects will compare byte for byte.
 type LoadCommand struct {
-	Cmd     uint32 // type of load command
-	CmdSize uint32 // total size of command in bytes
+	Cmd     uint32 `struc:"little"` // type of load command
+	CmdSize uint32 `struc:"little"` // total size of command in bytes
 }
 
 // After MacOS X 10.1 when a new load command is added that is required to be
@@ -199,6 +199,121 @@ const (
 	LC_FILESET_ENTRY            = (0x35 | LC_REQ_DYLD) // used with fileset_entry_command
 )
 
+func LC2String(lc uint32) string {
+	switch lc {
+	case LC_SEGMENT:
+		return "SEGMENT"
+	case LC_SYMTAB:
+		return "SYMTAB"
+	case LC_SYMSEG:
+		return "SYMSEG"
+	case LC_THREAD:
+		return "THREAD"
+	case LC_UNIXTHREAD:
+		return "UNIXTHREAD"
+	case LC_LOADFVMLIB:
+		return "LOADFVMLIB"
+	case LC_IDFVMLIB:
+		return "IDFVMLIB"
+	case LC_IDENT:
+		return "IDENT"
+	case LC_FVMFILE:
+		return "FVMFILE"
+	case LC_PREPAGE:
+		return "PREPAGE"
+	case LC_DYSYMTAB:
+		return "DYSYMTAB"
+	case LC_LOAD_DYLIB:
+		return "LOAD_DYLIB"
+	case LC_ID_DYLIB:
+		return "ID_DYLIB"
+	case LC_LOAD_DYLINKER:
+		return "LOAD_DYLINKER"
+	case LC_ID_DYLINKER:
+		return "ID_DYLINKER"
+	case LC_PREBOUND_DYLIB:
+		return "PREBOUND_DYLIB"
+	case LC_ROUTINES:
+		return "ROUTINES"
+	case LC_SUB_FRAMEWORK:
+		return "SUB_FRAMEWORK"
+	case LC_SUB_UMBRELLA:
+		return "SUB_UMBRELLA"
+	case LC_SUB_CLIENT:
+		return "SUB_CLIENT"
+	case LC_SUB_LIBRARY:
+		return "SUB_LIBRARY"
+	case LC_TWOLEVEL_HINTS:
+		return "TWOLEVEL_HINTS"
+	case LC_PREBIND_CKSUM:
+		return "PREBIND_CKSUM"
+	case LC_LOAD_WEAK_DYLIB:
+		return "LOAD_WEAK_DYLIB"
+	case LC_SEGMENT_64:
+		return "SEGMENT_64"
+	case LC_ROUTINES_64:
+		return "ROUTINES_64"
+	case LC_UUID:
+		return "UUID"
+	case LC_RPATH:
+		return "RPATH"
+	case LC_CODE_SIGNATURE:
+		return "CODE_SIGNATURE"
+	case LC_SEGMENT_SPLIT_INFO:
+		return "SEGMENT_SPLIT_INFO"
+	case LC_REEXPORT_DYLIB:
+		return "REEXPORT_DYLIB"
+	case LC_LAZY_LOAD_DYLIB:
+		return "LAZY_LOAD_DYLIB"
+	case LC_ENCRYPTION_INFO:
+		return "ENCRYPTION_INFO"
+	case LC_DYLD_INFO:
+		return "DYLD_INFO"
+	case LC_DYLD_INFO_ONLY:
+		return "DYLD_INFO_ONLY"
+	case LC_LOAD_UPWARD_DYLIB:
+		return "LOAD_UPWARD_DYLIB"
+	case LC_VERSION_MIN_MACOSX:
+		return "VERSION_MIN_MACOSX"
+	case LC_VERSION_MIN_IPHONEOS:
+		return "VERSION_MIN_IPHONEOS"
+	case LC_FUNCTION_STARTS:
+		return "FUNCTION_STARTS"
+	case LC_DYLD_ENVIRONMENT:
+		return "DYLD_ENVIRONMENT"
+	case LC_MAIN:
+		return "MAIN"
+	case LC_DATA_IN_CODE:
+		return "DATA_IN_CODE"
+	case LC_SOURCE_VERSION:
+		return "SOURCE_VERSION"
+	case LC_DYLIB_CODE_SIGN_DRS:
+		return "DYLIB_CODE_SIGN_DRS"
+	case LC_ENCRYPTION_INFO_64:
+		return "ENCRYPTION_INFO_64"
+	case LC_LINKER_OPTION:
+		return "LINKER_OPTION"
+	case LC_LINKER_OPTIMIZATION_HINT:
+		return "LINKER_OPTIMIZATION_HINT"
+	case LC_VERSION_MIN_TVOS:
+		return "VERSION_MIN_TVOS"
+	case LC_VERSION_MIN_WATCHOS:
+		return "VERSION_MIN_WATCHOS"
+	case LC_NOTE:
+		return "NOTE"
+	case LC_BUILD_VERSION:
+		return "BUILD_VERSION"
+	case LC_DYLD_EXPORTS_TRIE:
+		return "DYLD_EXPORTS_TRIE"
+	case LC_DYLD_CHAINED_FIXUPS:
+		return "DYLD_CHAINED_FIXUPS"
+	case LC_FILESET_ENTRY:
+		return "FILESET_ENTRY"
+	default:
+		return fmt.Sprintf("Unknown-%#x", lc)
+	}
+}
+
 // The segment load command indicates that a part of this file is to be
 // mapped into the task's address space.  The size of this segment in memory,
 // vmsize, maybe equal to or larger than the amount to map from this file,
@@ -210,17 +325,17 @@ const (
 // section structures directly follow the segment command and their size is
 // reflected in cmdsize.
 type SegmentCommand struct { // for 32-bit architectures
-	Cmd      uint32   // LC_SEGMENT
-	CmdSize  uint32   // includes sizeof section structs
+	Cmd      uint32   `struc:"little"` // LC_SEGMENT
+	CmdSize  uint32   `struc:"little"` // includes sizeof section structs
 	SegName  [16]byte // segment name
-	VMAddr   uint32   // memory address of this segment
-	VMSize   uint32   // memory size of this segment
-	FileOff  uint32   // file offset of this segment
-	FileSize uint32   // amount to map from the file
-	MaxProt  int32    // maximum VM protection
-	InitProt int32    // initial VM protection
-	NSects   uint32   // number of sections in segment
-	Flags    uint32   // flags
+	VMAddr   uint32   `struc:"little"` // memory address of this segment
+	VMSize   uint32   `struc:"little"` // memory size of this segment
+	FileOff  uint32   `struc:"little"` // file offset of this segment
+	FileSize uint32   `struc:"little"` // amount to map from the file
+	MaxProt  int32    `struc:"little"` // maximum VM protection
+	InitProt int32    `struc:"little"` // initial VM protection
+	NSects   uint32   `struc:"little"` // number of sections in segment
+	Flags    uint32   `struc:"little"` // flags
 }
 
 // The 64-bit segment load command indicates that a part of this file is to be
@@ -228,17 +343,17 @@ type SegmentCommand struct { // for 32-bit architectures
 // sections then section64 structures directly follow the 64-bit segment
 // command and their size is reflected in cmdsize.
 type SegmentCommand64 struct { // for 64-bit architectures
-	Cmd      uint32   // LC_SEGMENT_64
-	CmdSize  uint32   // includes sizeof section64 structs
+	Cmd      uint32   `struc:"little"` // LC_SEGMENT_64
+	CmdSize  uint32   `struc:"little"` // includes sizeof section64 structs
 	SegName  [16]byte // segment name
-	VMAddr   uint64   // memory address of this segment
-	VMSize   uint64   // memory size of this segment
-	FileOff  uint64   // file offset of this segment
-	FileSize uint64   // amount to map from the file
-	MaxProt  int32    // maximum VM protection
-	InitProt int32    // initial VM protection
-	NSects   uint32   // number of sections in segment
-	Flags    uint32   // flags
+	VMAddr   uint64   `struc:"little"` // memory address of this segment
+	VMSize   uint64   `struc:"little"` // memory size of this segment
+	FileOff  uint64   `struc:"little"` // file offset of this segment
+	FileSize uint64   `struc:"little"` // amount to map from the file
+	MaxProt  int32    `struc:"little"` // maximum VM protection
+	InitProt int32    `struc:"little"` // initial VM protection
+	NSects   uint32   `struc:"little"` // number of sections in segment
+	Flags    uint32   `struc:"little"` // flags
 }
 
 // Constants for the flags field of the segment_command
@@ -278,30 +393,30 @@ const (
 type Section struct { // for 32-bit architectures
 	SectName  [16]byte // name of this section
 	SegName   [16]byte // segment this section goes in
-	Addr      uint32   // memory address of this section
-	Size      uint32   // size in bytes of this section
-	Offset    uint32   // file offset of this section
-	Align     uint32   // section alignment (power of 2)
-	RelOff    uint32   // file offset of relocation entries
-	NReloc    uint32   // number of relocation entries
-	Flags     uint32   // flags (section type and attributes)
-	Reserved1 uint32   // reserved (for offset or index)
-	Reserved2 uint32   // reserved (for count or sizeof)
+	Addr      uint32   `struc:"little"` // memory address of this section
+	Size      uint32   `struc:"little"` // size in bytes of this section
+	Offset    uint32   `struc:"little"` // file offset of this section
+	Align     uint32   `struc:"little"` // section alignment (power of 2)
+	RelOff    uint32   `struc:"little"` // file offset of relocation entries
+	NReloc    uint32   `struc:"little"` // number of relocation entries
+	Flags     uint32   `struc:"little"` // flags (section type and attributes)
+	Reserved1 uint32   `struc:"little"` // reserved (for offset or index)
+	Reserved2 uint32   `struc:"little"` // reserved (for count or sizeof)
 }
 
 type Section64 struct { // for 64-bit architectures
 	SectName  [16]byte // name of this section
 	SegName   [16]byte // segment this section goes in
-	Addr      uint64   // memory address of this section
-	Size      uint64   // size in bytes of this section
-	Offset    uint32   // file offset of this section
-	Align     uint32   // section alignment (power of 2)
-	RelOff    uint32   // file offset of relocation entries
-	NReloc    uint32   // number of relocation entries
-	Flags     uint32   // flags (section type and attributes)
-	Reserved1 uint32   // reserved (for offset or index)
-	Reserved2 uint32   // reserved (for count or sizeof)
-	Reserved3 uint32   // reserved
+	Addr      uint64   `struc:"little"` // memory address of this section
+	Size      uint64   `struc:"little"` // size in bytes of this section
+	Offset    uint32   `struc:"little"` // file offset of this section
+	Align     uint32   `struc:"little"` // section alignment (power of 2)
+	RelOff    uint32   `struc:"little"` // file offset of relocation entries
+	NReloc    uint32   `struc:"little"` // number of relocation entries
+	Flags     uint32   `struc:"little"` // flags (section type and attributes)
+	Reserved1 uint32   `struc:"little"` // reserved (for offset or index)
+	Reserved2 uint32   `struc:"little"` // reserved (for count or sizeof)
+	Reserved3 uint32   `struc:"little"` // reserved
 }
 
 // The flags field of a section structure is separated into two parts a section
@@ -423,9 +538,9 @@ const (
 // minor version number.  The address of where the headers are loaded is in
 // header_addr. (THIS IS OBSOLETE and no longer supported).
 type FVMLib struct {
-	Name         uint32 // library's target pathname
-	MinorVersion uint32 // library's minor version number
-	HeaderAddr   uint32 // library's header address
+	Name         uint32 `struc:"little"` // library's target pathname
+	MinorVersion uint32 `struc:"little"` // library's minor version number
+	HeaderAddr   uint32 `struc:"little"` // library's header address
 }
 
 // A fixed virtual shared library (filetype == MH_FVMLIB in the mach header)
@@ -434,8 +549,8 @@ type FVMLib struct {
 // fvmlib_command (cmd == LC_LOADFVMLIB) for each library it uses.
 // (THIS IS OBSOLETE and no longer supported).
 type FVMLibCommand struct {
-	Cmd     uint32 // LC_IDFVMLIB or LC_LOADFVMLIB
-	CmdSize uint32 // includes pathname string
+	Cmd     uint32 `struc:"little"` // LC_IDFVMLIB or LC_LOADFVMLIB
+	CmdSize uint32 `struc:"little"` // includes pathname string
 	FVMLib  FVMLib // the library identification
 }
 
@@ -447,10 +562,10 @@ type FVMLibCommand struct {
 // built and copied into user so it can be use to determined if the library used
 // at runtime is exactly the same as used to built the program.
 type DYLIB struct {
-	Name                 uint32 // library's path name
-	Timestamp            uint32 // library's build time stamp
-	CurrentVersion       uint32 // library's current version number
-	CompatibilityVersion uint32 // library's compatibility vers number
+	Name                 uint32 `struc:"little"` // library's path name
+	Timestamp            uint32 `struc:"little"` // library's build time stamp
+	CurrentVersion       uint32 `struc:"little"` // library's current version number
+	CompatibilityVersion uint32 `struc:"little"` // library's compatibility vers number
 }
 
 // A dynamically linked shared library (filetype == MH_DYLIB in the mach header)
@@ -459,8 +574,8 @@ type DYLIB struct {
 // dylib_command (cmd == LC_LOAD_DYLIB, LC_LOAD_WEAK_DYLIB, or
 // LC_REEXPORT_DYLIB) for each library it uses.
 type DYLIBCommand struct {
-	Cmd     uint32 // LC_ID_DYLIB, LC_LOAD_{,WEAK_}DYLIB, LC_REEXPORT_DYLIB
-	CmdSize uint32 // includes pathname string
+	Cmd     uint32 `struc:"little"` // LC_ID_DYLIB, LC_LOAD_{,WEAK_}DYLIB, LC_REEXPORT_DYLIB
+	CmdSize uint32 `struc:"little"` // includes pathname string
 	DYLIB   DYLIB  // the library identification
 }
 
@@ -473,9 +588,9 @@ type DYLIBCommand struct {
 // The name of the umbrella framework for subframeworks is recorded in the
 // following structure.
 type SubFrameworkCommand struct {
-	Cmd      uint32 // LC_SUB_FRAMEWORK
-	CmdSize  uint32 // includes umbrella string
-	Umbrella uint32 // the umbrella framework name
+	Cmd      uint32 `struc:"little"` // LC_SUB_FRAMEWORK
+	CmdSize  uint32 `struc:"little"` // includes umbrella string
+	Umbrella uint32 `struc:"little"` // the umbrella framework name
 }
 
 // For dynamically linked shared libraries that are subframework of an umbrella
@@ -486,9 +601,9 @@ type SubFrameworkCommand struct {
 // usually a framework name.  It can also be a name used for bundles clients
 // where the bundle is built with "-client_name client_name".
 type SubClientCommand struct {
-	Cmd     uint32 // LC_SUB_CLIENT
-	CmdSize uint32 // includes client string
-	Client  uint32 // the client name
+	Cmd     uint32 `struc:"little"` // LC_SUB_CLIENT
+	CmdSize uint32 `struc:"little"` // includes client string
+	Client  uint32 `struc:"little"` // the client name
 }
 
 // A dynamically linked shared library may be a sub_umbrella of an umbrella
@@ -503,9 +618,9 @@ type SubClientCommand struct {
 // Zero or more sub_umbrella frameworks may be use by an umbrella framework.
 // The name of a sub_umbrella framework is recorded in the following structure.
 type SubUmbrellaCommand struct {
-	Cmd         uint32 // LC_SUB_UMBRELLA
-	CmdSize     uint32 // includes sub_umbrella string
-	SubUmbrella uint32 // the sub_umbrella framework name
+	Cmd         uint32 `struc:"little"` // LC_SUB_UMBRELLA
+	CmdSize     uint32 `struc:"little"` // includes sub_umbrella string
+	SubUmbrella uint32 `struc:"little"` // the sub_umbrella framework name
 }
 
 // A dynamically linked shared library may be a sub_library of another shared
@@ -522,9 +637,9 @@ type SubUmbrellaCommand struct {
 // The name of a sub_library framework is recorded in the following structure.
 // For example /usr/lib/libobjc_profile.A.dylib would be recorded as "libobjc".
 type SubLibraryCommand struct {
-	Cmd        uint32 // LC_SUB_LIBRARY
-	CmdSize    uint32 // includes sub_library string
-	SubLibrary uint32 // the sub_library name
+	Cmd        uint32 `struc:"little"` // LC_SUB_LIBRARY
+	CmdSize    uint32 `struc:"little"` // includes sub_library string
+	SubLibrary uint32 `struc:"little"` // the sub_library name
 }
 
 // A program (filetype == MH_EXECUTE) that is
@@ -535,11 +650,11 @@ type SubLibraryCommand struct {
 // of the first byte.  So the bit for the Nth module is:
 // (linked_modules[N/8] >> N%8) & 1
 type PreboundDylibCommand struct {
-	Cmd           uint32 // LC_PREBOUND_DYLIB
-	CmdSize       uint32 // includes strings
-	Name          uint32 // library's path name
-	NModules      uint32 // number of modules in library
-	LinkedModules uint32 // bit vector of linked modules
+	Cmd           uint32 `struc:"little"` // LC_PREBOUND_DYLIB
+	CmdSize       uint32 `struc:"little"` // includes strings
+	Name          uint32 `struc:"little"` // library's path name
+	NModules      uint32 `struc:"little"` // number of modules in library
+	LinkedModules uint32 `struc:"little"` // bit vector of linked modules
 }
 
 // A program that uses a dynamic linker contains a dylinker_command to identify
@@ -549,9 +664,9 @@ type PreboundDylibCommand struct {
 // This struct is also used for the LC_DYLD_ENVIRONMENT load command and
 // contains string for dyld to treat like environment variable.
 type DylinkerCommand struct {
-	Cmd     uint32 // LC_ID_DYLINKER, LC_LOAD_DYLINKER or LC_DYLD_ENVIRONMENT
-	CmdSize uint32 // includes pathname string
-	Name    uint32 // dynamic linker's path name
+	Cmd     uint32 `struc:"little"` // LC_ID_DYLINKER, LC_LOAD_DYLINKER or LC_DYLD_ENVIRONMENT
+	CmdSize uint32 `struc:"little"` // includes pathname string
+	Name    uint32 `struc:"little"` // dynamic linker's path name
 }
 
 // Thread commands contain machine-specific data structures suitable for
@@ -574,8 +689,8 @@ type DylinkerCommand struct {
 // created (based on the shell's limit for the stack size).  Command arguments
 // and environment variables are copied onto that stack.
 type ThreadCommand struct {
-	Cmd     uint32 // LC_THREAD or  LC_UNIXTHREAD
-	CmdSize uint32 // total size of this command
+	Cmd     uint32 `struc:"little"` // LC_THREAD or  LC_UNIXTHREAD
+	CmdSize uint32 `struc:"little"` // total size of this command
 	// uint32 flavor		   flavor of thread state
 	// uint32 count		   count of uint32's in thread state
 	// struct XXX_thread_state state   thread state for this flavor
@@ -589,42 +704,42 @@ type ThreadCommand struct {
 // and then calls it.  This gets called before any module initialization
 // routines (used for C++ static constructors) in the library.
 type RoutinesCommand struct { // for 32-bit architectures
-	Cmd         uint32 // LC_ROUTINES
-	CmdSize     uint32 // total size of this command
-	InitAddress uint32 // address of initialization routine
-	InitModule  uint32 // index into the module table that the init routine is defined in
-	Reserved1   uint32
-	Reserved2   uint32
-	Reserved3   uint32
-	Reserved4   uint32
-	Reserved5   uint32
-	Reserved6   uint32
+	Cmd         uint32 `struc:"little"` // LC_ROUTINES
+	CmdSize     uint32 `struc:"little"` // total size of this command
+	InitAddress uint32 `struc:"little"` // address of initialization routine
+	InitModule  uint32 `struc:"little"` // index into the module table that the init routine is defined in
+	Reserved1   uint32 `struc:"little"`
+	Reserved2   uint32 `struc:"little"`
+	Reserved3   uint32 `struc:"little"`
+	Reserved4   uint32 `struc:"little"`
+	Reserved5   uint32 `struc:"little"`
+	Reserved6   uint32 `struc:"little"`
 }
 
 // The 64-bit routines command.  Same use as above.
 type RoutinesCommand64 struct { // for 64-bit architectures
-	Cmd         uint32 // LC_ROUTINES_64
-	CmdSize     uint32 // total size of this command
-	InitAddress uint64 // address of initialization routine
-	InitModule  uint64 // index into the module table that the init routine is defined in
-	Reserved1   uint64
-	Reserved2   uint64
-	Reserved3   uint64
-	Reserved4   uint64
-	Reserved5   uint64
-	Reserved6   uint64
+	Cmd         uint32 `struc:"little"` // LC_ROUTINES_64
+	CmdSize     uint32 `struc:"little"` // total size of this command
+	InitAddress uint64 `struc:"little"` // address of initialization routine
+	InitModule  uint64 `struc:"little"` // index into the module table that the init routine is defined in
+	Reserved1   uint64 `struc:"little"`
+	Reserved2   uint64 `struc:"little"`
+	Reserved3   uint64 `struc:"little"`
+	Reserved4   uint64 `struc:"little"`
+	Reserved5   uint64 `struc:"little"`
+	Reserved6   uint64 `struc:"little"`
 }
 
 // The symtab_command contains the offsets and sizes of the link-edit 4.3BSD
 // "stab" style symbol table information as described in the header files
 // <nlist.h> and <stab.h>.
 type SymtabCommand struct {
-	Cmd     uint32 // LC_SYMTAB
-	CmdSize uint32 // sizeof(struct symtab_command)
-	SymOff  uint32 // symbol table offset
-	NSyms   uint32 // number of symbol table entries
-	StrOff  uint32 // string table offset
-	StrSize uint32 // string table size in bytes
+	Cmd     uint32 `struc:"little"` // LC_SYMTAB
+	CmdSize uint32 `struc:"little"` // sizeof(struct symtab_command)
+	SymOff  uint32 `struc:"little"` // symbol table offset
+	NSyms   uint32 `struc:"little"` // number of symbol table entries
+	StrOff  uint32 `struc:"little"` // string table offset
+	StrSize uint32 `struc:"little"` // string table size in bytes
 }
 
 // This is the second set of the symbolic information which is used to support
@@ -673,10 +788,9 @@ type SymtabCommand struct {
 // For executable and object modules the relocation entries continue to hang
 // off the section structures.
 type DYSymTabCommand struct {
-	Cmd     uint32 // LC_DYSYMTAB
-	CmdSize uint32 // sizeof(struct dysymtab_command)
+	Cmd     uint32 `struc:"little"` // LC_DYSYMTAB
+	CmdSize uint32 `struc:"little"` // sizeof(struct dysymtab_command)
 
-	//
 	// The symbols indicated by symoff and nsyms of the LC_SYMTAB load command
 	// are grouped into the following three groups:
 	//    local symbols (further grouped by the module they are from)
@@ -691,14 +805,14 @@ type DYSymTabCommand struct {
 	// binding (indirectly through the module table and the reference symbol
 	// table when this is a dynamically linked shared library file).
 
-	ILocalSym uint32 // index to local symbols
-	NLocalSym uint32 // number of local symbols
+	ILocalSym uint32 `struc:"little"` // index to local symbols
+	NLocalSym uint32 `struc:"little"` // number of local symbols
 
-	IExtdefSym uint32 // index to externally defined symbols
-	NExtdefSym uint32 // number of externally defined symbols
+	IExtdefSym uint32 `struc:"little"` // index to externally defined symbols
+	NExtdefSym uint32 `struc:"little"` // number of externally defined symbols
 
-	IUndefSym uint32 // index to undefined symbols
-	NUndefSym uint32 // number of undefined symbols
+	IUndefSym uint32 `struc:"little"` // index to undefined symbols
+	NUndefSym uint32 `struc:"little"` // number of undefined symbols
 
 	// For the for the dynamic binding process to find which module a symbol
 	// is defined in the table of contents is used (analogous to the ranlib
@@ -707,8 +821,8 @@ type DYSymTabCommand struct {
 	// library file.  For executable and object modules the defined external
 	// symbols are sorted by name and is use as the table of contents.
 
-	TOCOff uint32 // file offset to table of contents
-	NTOC   uint32 // number of entries in table of contents
+	TOCOff uint32 `struc:"little"` // file offset to table of contents
+	NTOC   uint32 `struc:"little"` // number of entries in table of contents
 
 	// To support dynamic binding of "modules" (whole object files) the symbol
 	// table must reflect the modules that the file was created from.  This is
@@ -718,8 +832,8 @@ type DYSymTabCommand struct {
 	// shared library file.  For executable and object modules the file only
 	// contains one module so everything in the file belongs to the module.
 
-	ModTabOff uint32 // file offset to module table
-	NModTab   uint32 // number of module table entries
+	ModTabOff uint32 `struc:"little"` // file offset to module table
+	NModTab   uint32 `struc:"little"` // number of module table entries
 
 	// To support dynamic module binding the module structure for each module
 	// indicates the external references (defined and undefined) each module
@@ -729,8 +843,8 @@ type DYSymTabCommand struct {
 	// executable and object modules the defined external symbols and the
 	// undefined external symbols indicates the external references.
 
-	ExtRefSymOff uint32 // offset to referenced symbol table
-	NExtRefSyms  uint32 // number of referenced symbol table entries
+	ExtRefSymOff uint32 `struc:"little"` // offset to referenced symbol table
+	NExtRefSyms  uint32 `struc:"little"` // number of referenced symbol table entries
 
 	// The sections that contain "symbol pointers" and "routine stubs" have
 	// indexes and (implied counts based on the size of the section and fixed
@@ -741,8 +855,8 @@ type DYSymTabCommand struct {
 	// the symbol table to the symbol that the pointer or stub is referring to.
 	// The indirect symbol table is ordered to match the entries in the section.
 
-	IndirectSymOff uint32 // file offset to the indirect symbol table
-	NIndirectSyms  uint32 // number of indirect symbol table entries
+	IndirectSymOff uint32 `struc:"little"` // file offset to the indirect symbol table
+	NIndirectSyms  uint32 `struc:"little"` // number of indirect symbol table entries
 
 	// To support relocating an individual module in a library file quickly the
 	// external relocation entries for each module in the library need to be
@@ -770,15 +884,15 @@ type DYSymTabCommand struct {
 	// remaining external relocation entries for them (for merged sections
 	// remaining relocation entries must be local).
 
-	ExtRelOff uint32 // offset to external relocation entries
-	NExtRel   uint32 // number of external relocation entries
+	ExtRelOff uint32 `struc:"little"` // offset to external relocation entries
+	NExtRel   uint32 `struc:"little"` // number of external relocation entries
 
 	// All the local relocation entries are grouped together (they are not
 	// grouped by their module since they are only used if the object is moved
 	// from it staticly link edited address).
 
-	LocRelOff uint32 // offset to local relocation entries
-	NLocRel   uint32 // number of local relocation entries
+	LocRelOff uint32 `struc:"little"` // offset to local relocation entries
+	NLocRel   uint32 `struc:"little"` // number of local relocation entries
 }
 
 // An indirect symbol table entry is simply a 32bit index into the symbol table
@@ -793,50 +907,50 @@ const (
 
 // a table of contents entry
 type DYLIBTableOfContents struct {
-	SymbolIndex uint32 // the defined external symbol (index into the symbol table)
-	ModuleIndex uint32 // index into the module table this symbol is defined in
+	SymbolIndex uint32 `struc:"little"` // the defined external symbol (index into the symbol table)
+	ModuleIndex uint32 `struc:"little"` // index into the module table this symbol is defined in
 }
 
 // a module table entry
 type DYLIBModule struct {
-	ModuleName uint32 // the module name (index into string table)
+	ModuleName uint32 `struc:"little"` // the module name (index into string table)
 
-	IExtDefSym uint32 // index into externally defined symbols
-	NExtDefSym uint32 // number of externally defined symbols
-	IRefSym    uint32 // index into reference symbol table
-	NRefSym    uint32 // number of reference symbol table entries
-	ILocalSym  uint32 // index into symbols for local symbols
-	NLocalSym  uint32 // number of local symbols
+	IExtDefSym uint32 `struc:"little"` // index into externally defined symbols
+	NExtDefSym uint32 `struc:"little"` // number of externally defined symbols
+	IRefSym    uint32 `struc:"little"` // index into reference symbol table
+	NRefSym    uint32 `struc:"little"` // number of reference symbol table entries
+	ILocalSym  uint32 `struc:"little"` // index into symbols for local symbols
+	NLocalSym  uint32 `struc:"little"` // number of local symbols
 
-	IExtRel uint32 // index into external relocation entries
-	NExtRel uint32 // number of external relocation entries
+	IExtRel uint32 `struc:"little"` // index into external relocation entries
+	NExtRel uint32 `struc:"little"` // number of external relocation entries
 
-	IInitITerm uint32 // low 16 bits are the index into the init section, high 16 bits are the index into the term section
-	NInitNTerm uint32 // low 16 bits are the number of init section entries, high 16 bits are the number of term section entries
+	IInitITerm uint32 `struc:"little"` // low 16 bits are the index into the init section, high 16 bits are the index into the term section
+	NInitNTerm uint32 `struc:"little"` // low 16 bits are the number of init section entries, high 16 bits are the number of term section entries
 
-	ObjcModuleInfoAddr uint32 // for this module address of the start of, the (__OBJC,__module_info) section
-	ObjcModuleInfoSize uint32 // for this module size of, the (__OBJC,__module_info) section
+	ObjcModuleInfoAddr uint32 `struc:"little"` // for this module address of the start of, the (__OBJC,__module_info) section
+	ObjcModuleInfoSize uint32 `struc:"little"` // for this module size of, the (__OBJC,__module_info) section
 }
 
 // a 64-bit module table entry
 type DYLIBModule64 struct {
-	ModuleName uint32 // the module name (index into string table)
+	ModuleName uint32 `struc:"little"` // the module name (index into string table)
 
-	IExtDefSym uint32 // index into externally defined symbols
-	NExtDefSym uint32 // number of externally defined symbols
-	IRefSym    uint32 // index into reference symbol table
-	NRefSym    uint32 // number of reference symbol table entries
-	ILocalSym  uint32 // index into symbols for local symbols
-	NLocalSym  uint32 // number of local symbols
+	IExtDefSym uint32 `struc:"little"` // index into externally defined symbols
+	NExtDefSym uint32 `struc:"little"` // number of externally defined symbols
+	IRefSym    uint32 `struc:"little"` // index into reference symbol table
+	NRefSym    uint32 `struc:"little"` // number of reference symbol table entries
+	ILocalSym  uint32 `struc:"little"` // index into symbols for local symbols
+	NLocalSym  uint32 `struc:"little"` // number of local symbols
 
-	IExtRel uint32 // index into external relocation entries
-	NExtRel uint32 // number of external relocation entries
+	IExtRel uint32 `struc:"little"` // index into external relocation entries
+	NExtRel uint32 `struc:"little"` // number of external relocation entries
 
-	IInitITerm uint32 // low 16 bits are the index into the init section, high 16 bits are the index into the term section
-	NInitNTerm uint32 // low 16 bits are the number of init section entries, high 16 bits are the number of term section entries
+	IInitITerm uint32 `struc:"little"` // low 16 bits are the index into the init section, high 16 bits are the index into the term section
+	NInitNTerm uint32 `struc:"little"` // low 16 bits are the number of init section entries, high 16 bits are the number of term section entries
 
-	ObjcModuleInfoSize uint32 // for this module size of, the (__OBJC,__module_info) section
-	ObjcModuleInfoAddr uint64 // for this module address of the start of, the (__OBJC,__module_info) section
+	ObjcModuleInfoSize uint32 `struc:"little"` // for this module size of, the (__OBJC,__module_info) section
+	ObjcModuleInfoAddr uint64 `struc:"little"` // for this module address of the start of, the (__OBJC,__module_info) section
 }
 
 // The entries in the reference symbol table are used when loading the module
@@ -846,7 +960,7 @@ type DYLIBModule64 struct {
 // reference that is being made.  The constants for the flags are defined in
 // <mach-o/nlist.h> as they are also used for symbol table entries.
 type DYLIBReference struct {
-	BitField DYLIBReferenceBitField
+	BitField DYLIBReferenceBitField `struc:"little"`
 }
 
 type DYLIBReferenceBitField uint32
@@ -866,10 +980,10 @@ func (me DYLIBReferenceBitField) String() string {
 // The twolevel_hints_command contains the offset and number of hints in the
 // two-level namespace lookup hints table.
 type TwoLevelHintsCommand struct {
-	Cmd     uint32 // LC_TWOLEVEL_HINTS
-	CmdSize uint32 // sizeof(struct twolevel_hints_command)
-	Offset  uint32 // offset to the hint table
-	NHints  uint32 // number of hints in the hint table
+	Cmd     uint32 `struc:"little"` // LC_TWOLEVEL_HINTS
+	CmdSize uint32 `struc:"little"` // sizeof(struct twolevel_hints_command)
+	Offset  uint32 `struc:"little"` // offset to the hint table
+	NHints  uint32 `struc:"little"` // number of hints in the hint table
 }
 
 // The entries in the two-level namespace lookup hints table are twolevel_hint
@@ -887,7 +1001,7 @@ type TwoLevelHintsCommand struct {
 // library's table of contents.  This is used as the starting point of the
 // binary search or a directed linear search.
 type TwoLevelHint struct {
-	BitField TwoLevelHintBitField
+	BitField TwoLevelHintBitField `struc:"little"`
 }
 
 type TwoLevelHintBitField uint32
@@ -912,91 +1026,91 @@ func (me TwoLevelHintBitField) String() string {
 // cksum field of this load command in the output file.  If when the prebinding
 // is re-done and the cksum field is non-zero it is left unchanged from the
 // input file.
-type PrebindCksumCommand struct {
-	Cmd     uint32 // LC_PREBIND_CKSUM
-	CmdSize uint32 // sizeof(struct prebind_cksum_command)
-	CKSum   uint32 // the check sum or zero
+type PrebindCKSumCommand struct {
+	Cmd     uint32 `struc:"little"` // LC_PREBIND_CKSUM
+	CmdSize uint32 `struc:"little"` // sizeof(struct prebind_cksum_command)
+	CKSum   uint32 `struc:"little"` // the check sum or zero
 }
 
 // The uuid load command contains a single 128-bit unique random number that
 // identifies an object produced by the static link editor.
 type UUIDCommand struct {
-	Cmd     uint32    // LC_UUID
-	CmdSize uint32    // sizeof(struct uuid_command)
+	Cmd     uint32    `struc:"little"` // LC_UUID
+	CmdSize uint32    `struc:"little"` // sizeof(struct uuid_command)
 	UUID    [16]uint8 // the 128-bit uuid
 }
 
 // The rpath_command contains a path which at runtime should be added to
 // the current run path used to find @rpath prefixed dylibs.
 type RPathCommand struct {
-	Cmd     uint32 // LC_RPATH
-	CmdSize uint32 // includes string
-	Path    uint32 // path to add to run path
+	Cmd     uint32 `struc:"little"` // LC_RPATH
+	CmdSize uint32 `struc:"little"` // includes string
+	Path    uint32 `struc:"little"` // path to add to run path
 }
 
 // The linkedit_data_command contains the offsets and sizes of a blob
 // of data in the __LINKEDIT segment.
 type LinkEditDataCommand struct {
-	Cmd      uint32 // LC_CODE_SIGNATURE, LC_SEGMENT_SPLIT_INFO, LC_FUNCTION_STARTS, LC_DATA_IN_CODE, LC_DYLIB_CODE_SIGN_DRS, LC_LINKER_OPTIMIZATION_HINT, LC_DYLD_EXPORTS_TRIE, or LC_DYLD_CHAINED_FIXUPS.
-	CmdSize  uint32 // sizeof(struct linkedit_data_command)
-	DataOff  uint32 // file offset of data in __LINKEDIT segment
-	DataSize uint32 // file size of data in __LINKEDIT segment
+	Cmd      uint32 `struc:"little"` // LC_CODE_SIGNATURE, LC_SEGMENT_SPLIT_INFO, LC_FUNCTION_STARTS, LC_DATA_IN_CODE, LC_DYLIB_CODE_SIGN_DRS, LC_LINKER_OPTIMIZATION_HINT, LC_DYLD_EXPORTS_TRIE, or LC_DYLD_CHAINED_FIXUPS.
+	CmdSize  uint32 `struc:"little"` // sizeof(struct linkedit_data_command)
+	DataOff  uint32 `struc:"little"` // file offset of data in __LINKEDIT segment
+	DataSize uint32 `struc:"little"` // file size of data in __LINKEDIT segment
 }
 
 type FilesetEntryCommand struct {
-	Cmd      uint32 // LC_FILESET_ENTRY
-	CmdSize  uint32 // includes id string
-	VMAddr   uint64 // memory address of the dylib
-	FileOff  uint64 // file offset of the dylib
-	EntryID  uint32 // contained entry id
-	Reserved uint32 // entry_id is 32-bits long, so this is the reserved padding
+	Cmd      uint32 `struc:"little"` // LC_FILESET_ENTRY
+	CmdSize  uint32 `struc:"little"` // includes id string
+	VMAddr   uint64 `struc:"little"` // memory address of the dylib
+	FileOff  uint64 `struc:"little"` // file offset of the dylib
+	EntryID  uint32 `struc:"little"` // contained entry id
+	Reserved uint32 `struc:"little"` // entry_id is 32-bits long, so this is the reserved padding
 }
 
 // The encryption_info_command contains the file offset and size of an
 // of an encrypted segment.
 type EncryptionInfoCommand struct {
-	Cmd       uint32 // LC_ENCRYPTION_INFO
-	CmdSize   uint32 // sizeof(struct encryption_info_command)
-	CryptOff  uint32 // file offset of encrypted range
-	CryptSize uint32 // file size of encrypted range
-	CryptID   uint32 // which enryption system, 0 means not-encrypted yet
+	Cmd       uint32 `struc:"little"` // LC_ENCRYPTION_INFO
+	CmdSize   uint32 `struc:"little"` // sizeof(struct encryption_info_command)
+	CryptOff  uint32 `struc:"little"` // file offset of encrypted range
+	CryptSize uint32 `struc:"little"` // file size of encrypted range
+	CryptID   uint32 `struc:"little"` // which enryption system, 0 means not-encrypted yet
 }
 
 // The encryption_info_command_64 contains the file offset and size of an
 // of an encrypted segment (for use in x86_64 targets).
 type EncryptionInfoCommand64 struct {
-	Cmd       uint32 // LC_ENCRYPTION_INFO_64
-	CmdSize   uint32 // sizeof(struct encryption_info_command_64)
-	CryptOff  uint32 // file offset of encrypted range
-	CryptSize uint32 // file size of encrypted range
-	CryptID   uint32 // which enryption system, 0 means not-encrypted yet
-	Pad       uint32 // padding to make this struct's size a multiple of 8 bytes
+	Cmd       uint32 `struc:"little"` // LC_ENCRYPTION_INFO_64
+	CmdSize   uint32 `struc:"little"` // sizeof(struct encryption_info_command_64)
+	CryptOff  uint32 `struc:"little"` // file offset of encrypted range
+	CryptSize uint32 `struc:"little"` // file size of encrypted range
+	CryptID   uint32 `struc:"little"` // which enryption system, 0 means not-encrypted yet
+	Pad       uint32 `struc:"little"` // padding to make this struct's size a multiple of 8 bytes
 }
 
 // The version_min_command contains the min OS version on which this
 // binary was built to run.
 type VersionMinCommand struct {
-	Cmd     uint32 // LC_VERSION_MIN_MACOSX or LC_VERSION_MIN_IPHONEOS or LC_VERSION_MIN_WATCHOS or LC_VERSION_MIN_TVOS
-	CmdSize uint32 // sizeof(struct min_version_command)
-	Version uint32 // X.Y.Z is encoded in nibbles xxxx.yy.zz
-	SDK     uint32 // X.Y.Z is encoded in nibbles xxxx.yy.zz
+	Cmd     uint32 `struc:"little"` // LC_VERSION_MIN_MACOSX or LC_VERSION_MIN_IPHONEOS or LC_VERSION_MIN_WATCHOS or LC_VERSION_MIN_TVOS
+	CmdSize uint32 `struc:"little"` // sizeof(struct min_version_command)
+	Version uint32 `struc:"little"` // X.Y.Z is encoded in nibbles xxxx.yy.zz
+	SDK     uint32 `struc:"little"` // X.Y.Z is encoded in nibbles xxxx.yy.zz
 }
 
 // The build_version_command contains the min OS version on which this
 // binary was built to run for its platform.  The list of known platforms and
 // tool values following it.
 type BuildVersionCommand struct {
-	Cmd      uint32 // LC_BUILD_VERSION
-	CmdSize  uint32 // sizeof(struct build_version_command) plus ntools// sizeof(struct build_tool_version)
-	Platform uint32 // platform
-	MinOS    uint32 // X.Y.Z is encoded in nibbles xxxx.yy.zz
-	SDK      uint32 // X.Y.Z is encoded in nibbles xxxx.yy.zz
-	NTools   uint32 // number of tool entries following this
+	Cmd      uint32 `struc:"little"` // LC_BUILD_VERSION
+	CmdSize  uint32 `struc:"little"` // sizeof(struct build_version_command) plus ntools// sizeof(struct build_tool_version)
+	Platform uint32 `struc:"little"` // platform
+	MinOS    uint32 `struc:"little"` // X.Y.Z is encoded in nibbles xxxx.yy.zz
+	SDK      uint32 `struc:"little"` // X.Y.Z is encoded in nibbles xxxx.yy.zz
+	NTools   uint32 `struc:"little"` // number of tool entries following this
 }
 
 type BuildToolVersion struct {
-	Tool    uint32 // enum for the tool
-	Version uint32 // version number of the tool
+	Tool    uint32 `struc:"little"` // enum for the tool
+	Version uint32 `struc:"little"` // version number of the tool
 }
 
 // Known values for the platform field above.
@@ -1029,8 +1143,8 @@ const (
 // is encoded using byte streams, so no endian swapping is needed
 // to interpret it.
 type DYLDInfoCommand struct {
-	Cmd     uint32 // LC_DYLD_INFO or LC_DYLD_INFO_ONLY
-	CmdSize uint32 // sizeof(struct dyld_info_command)
+	Cmd     uint32 `struc:"little"` // LC_DYLD_INFO or LC_DYLD_INFO_ONLY
+	CmdSize uint32 `struc:"little"` // sizeof(struct dyld_info_command)
 
 	// Dyld rebases an image whenever dyld loads it at an address different
 	// from its preferred address.  The rebase information is a stream
@@ -1042,8 +1156,8 @@ type DYLDInfoCommand struct {
 	// like "every n'th offset for m times" can be encoded in a few
 	// bytes.
 
-	RebaseOff  uint32 // file offset to rebase info
-	RebaseSize uint32 // size of rebase info
+	RebaseOff  uint32 `struc:"little"` // file offset to rebase info
+	RebaseSize uint32 `struc:"little"` // size of rebase info
 
 	// Dyld binds an image during the loading process, if the image
 	// requires any pointers to be initialized to symbols in other images.
@@ -1056,8 +1170,8 @@ type DYLDInfoCommand struct {
 	// like for runs of pointers initialzed to the same value can be
 	// encoded in a few bytes.
 
-	BindOff  uint32 // file offset to binding info
-	BindSize uint32 // size of binding info
+	BindOff  uint32 `struc:"little"` // file offset to binding info
+	BindSize uint32 `struc:"little"` // size of binding info
 
 	// Some C++ programs require dyld to unique symbols so that all
 	// images in the process use the same copy of some code/data.
@@ -1073,8 +1187,8 @@ type DYLDInfoCommand struct {
 	// that is detected when the weak_bind information is processed
 	// and the call to operator new is then rebound.
 
-	WeakBindOff  uint32 // file offset to weak binding info
-	WeakBindSize uint32 // size of weak binding info
+	WeakBindOff  uint32 `struc:"little"` // file offset to weak binding info
+	WeakBindSize uint32 `struc:"little"` // size of weak binding info
 
 	// Some uses of external symbols do not need to be bound immediately.
 	// Instead they can be lazily bound on first use.  The lazy_bind
@@ -1087,8 +1201,8 @@ type DYLDInfoCommand struct {
 	// the offset to lazy_bind_off to get the information on what
 	// to bind.
 
-	LazyBindOff  uint32 // file offset to lazy binding info
-	LazyBindSize uint32 // size of lazy binding infs
+	LazyBindOff  uint32 `struc:"little"` // file offset to lazy binding info
+	LazyBindSize uint32 `struc:"little"` // size of lazy binding infs
 
 	// The symbols exported by a dylib are encoded in a trie.  This
 	// is a compact representation that factors out common prefixes.
@@ -1120,8 +1234,8 @@ type DYLDInfoCommand struct {
 	//  in the symbol, followed by a uleb128 offset for the node that
 	//  edge points to.
 
-	ExportOff  uint32 // file offset to lazy binding info
-	ExportSize uint32 // size of lazy binding infs
+	ExportOff  uint32 `struc:"little"` // file offset to lazy binding info
+	ExportSize uint32 `struc:"little"` // size of lazy binding infs
 }
 
 // The following are used to encode rebasing information
@@ -1191,9 +1305,9 @@ const (
 
 // The linker_option_command contains linker options embedded in object files.
 type LinkerOptionCommand struct {
-	Cmd     uint32 // LC_LINKER_OPTION only used in MH_OBJECT filetypes
-	CmdSize uint32
-	Count   uint32 // number of strings concatenation of zero terminated UTF8 strings. Zero filled at end to align
+	Cmd     uint32 `struc:"little"` // LC_LINKER_OPTION only used in MH_OBJECT filetypes
+	CmdSize uint32 `struc:"little"`
+	Count   uint32 `struc:"little"` // number of strings concatenation of zero terminated UTF8 strings. Zero filled at end to align
 }
 
 // The symseg_command contains the offset and size of the GNU style
@@ -1204,10 +1318,10 @@ type LinkerOptionCommand struct {
 // roots also being a multiple of a long.  Also the padding must again be
 // zeroed. (THIS IS OBSOLETE and no longer supported).
 type SymSegCommand struct {
-	Cmd     uint32 // LC_SYMSEG
-	CmdSize uint32 // sizeof(struct symseg_command)
-	Offset  uint32 // symbol segment offset
-	Size    uint32 // symbol segment size in bytes
+	Cmd     uint32 `struc:"little"` // LC_SYMSEG
+	CmdSize uint32 `struc:"little"` // sizeof(struct symseg_command)
+	Offset  uint32 `struc:"little"` // symbol segment offset
+	Size    uint32 `struc:"little"` // symbol segment size in bytes
 }
 
 // The ident_command contains a free format string table following the
@@ -1215,8 +1329,8 @@ type SymSegCommand struct {
 // the command is padded out with zero bytes to a multiple of 4 bytes/
 // (THIS IS OBSOLETE and no longer supported).
 type IdentCommand struct {
-	Cmd     uint32 // LC_IDENT
-	CmdSize uint32 // strings that follow this command
+	Cmd     uint32 `struc:"little"` // LC_IDENT
+	CmdSize uint32 `struc:"little"` // strings that follow this command
 }
 
 // The fvmfile_command contains a reference to a file to be loaded at the
@@ -1224,10 +1338,10 @@ type IdentCommand struct {
 // internal use.  The kernel ignores this command when loading a program into
 // memory).
 type FVMFileCommand struct {
-	Cmd        uint32 // LC_FVMFILE
-	CmdSize    uint32 // includes pathname string
-	Name       uint32 // files pathname
-	HeaderAddr uint32 // files virtual address
+	Cmd        uint32 `struc:"little"` // LC_FVMFILE
+	CmdSize    uint32 `struc:"little"` // includes pathname string
+	Name       uint32 `struc:"little"` // files pathname
+	HeaderAddr uint32 `struc:"little"` // files virtual address
 }
 
 // The entry_point_command is a replacement for thread_command.
@@ -1235,27 +1349,27 @@ type FVMFileCommand struct {
 // of main().  If -stack_size was used at link time, the stacksize
 // field will contain the stack size need for the main thread.
 type EntryPointCommand struct {
-	Cmd       uint32 // LC_MAIN only used in MH_EXECUTE filetypes
-	CmdSize   uint32 // 24
-	EntryOff  uint64 // file (__TEXT) offset of main()
-	StackSize uint64 // if not zero, initial stack size
+	Cmd       uint32 `struc:"little"` // LC_MAIN only used in MH_EXECUTE filetypes
+	CmdSize   uint32 `struc:"little"` // 24
+	EntryOff  uint64 `struc:"little"` // file (__TEXT) offset of main()
+	StackSize uint64 `struc:"little"` // if not zero, initial stack size
 }
 
 // The source_version_command is an optional load command containing
 // the version of the sources used to build the binary.
 type SourceVersionCommand struct {
-	Cmd     uint32 // LC_SOURCE_VERSION
-	CmdSize uint32 // 16
-	Version uint64 // A.B.C.D.E packed as a24.b10.c10.d10.e10
+	Cmd     uint32 `struc:"little"` // LC_SOURCE_VERSION
+	CmdSize uint32 `struc:"little"` // 16
+	Version uint64 `struc:"little"` // A.B.C.D.E packed as a24.b10.c10.d10.e10
 }
 
 // The LC_DATA_IN_CODE load commands uses a linkedit_data_command
 // to point to an array of data_in_code_entry entries. Each entry
 // describes a range of data in a code section.
 type DataInCodeEntry struct {
-	Offset uint32 // from mach_header to start of data range
-	Length uint16 // number of bytes in data range
-	Kind   uint16 // a DICE_KIND_* value
+	Offset uint32 `struc:"little"` // from mach_header to start of data range
+	Length uint16 `struc:"little"` // number of bytes in data range
+	Kind   uint16 `struc:"little"` // a DICE_KIND_* value
 }
 
 const (
@@ -1269,17 +1383,17 @@ const (
 // Sections of type S_THREAD_LOCAL_VARIABLES contain an array
 // of tlv_descriptor structures.
 type TLCDescriptor struct {
-	Thunk  uint64 // void* (*thunk)(struct tlv_descriptor*)
-	Key    uint64
-	Offset uint64
+	Thunk  uint64 `struc:"little"` // void* (*thunk)(struct tlv_descriptor*)
+	Key    uint64 `struc:"little"`
+	Offset uint64 `struc:"little"`
 }
 
 // LC_NOTE commands describe a region of arbitrary data included in a Mach-O
 // file.  Its initial use is to record extra data in MH_CORE files.
 type NoteCommand struct {
-	Cmd       uint32   // LC_NOTE
-	CmdSize   uint32   // sizeof(struct note_command)
+	Cmd       uint32   `struc:"little"` // LC_NOTE
+	CmdSize   uint32   `struc:"little"` // sizeof(struct note_command)
 	DataOwner [16]byte // owner name for this LC_NOTE
-	Offset    uint64   // file offset of this data
-	Size      uint64   // length of data region
+	Offset    uint64   `struc:"little"` // file offset of this data
+	Size      uint64   `struc:"little"` // length of data region
 }

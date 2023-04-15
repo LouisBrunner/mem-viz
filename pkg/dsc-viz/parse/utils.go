@@ -1,6 +1,7 @@
 package parse
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"reflect"
@@ -164,6 +165,10 @@ func formatValue(name string, value interface{}) string {
 		return commons.FromCString(v[:])
 	case []uint16:
 		return fmt.Sprintf("[%d]uint16", len(v))
+	}
+	jsond, err := json.Marshal(value)
+	if err == nil {
+		return string(jsond)
 	}
 	return fmt.Sprintf("%v", value)
 }
