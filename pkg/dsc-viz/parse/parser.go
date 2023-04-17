@@ -2,6 +2,7 @@ package parse
 
 import (
 	"fmt"
+	"strings"
 	"unsafe"
 
 	"github.com/LouisBrunner/mem-viz/pkg/commons"
@@ -12,11 +13,14 @@ import (
 	"golang.org/x/exp/slices"
 )
 
+const page = 0x1000
+
 type parser struct {
 	logger                *logrus.Logger
 	slide                 uint64
 	addSizeLink           bool
 	thresholdsArrayTooBig uint64
+	uniqueBlocks          map[category][]*contracts.MemoryBlock
 	// FIXME: used only for emergencies, should never be used really
 	parents map[*contracts.MemoryBlock]*contracts.MemoryBlock
 }
@@ -35,6 +39,7 @@ func Parse(logger *logrus.Logger, fetcher subcontracts.Fetcher) (*contracts.Memo
 		// TODO: should be dsc-viz flags
 		addSizeLink:           false,
 		thresholdsArrayTooBig: 3000,
+		uniqueBlocks:          make(map[category][]*contracts.MemoryBlock),
 		parents:               make(map[*contracts.MemoryBlock]*contracts.MemoryBlock),
 	}
 	return parser.parse(fetcher)
@@ -48,10 +53,11 @@ func (me *parser) parse(fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, e
 	}
 
 	mainHeader := fetcher.Header()
-	mainBlock, headerBlock, imgsBlocks, err := me.addCache(root, fetcher, "Main Header", subcontracts.ManualAddress(0), nil)
+	mainBlock, headerBlock, err := me.addCache(root, fetcher, "Main Header", subcontracts.ManualAddress(0))
 	if err != nil {
 		return nil, err
 	}
+	me.clearNonGlobalCategories()
 
 	anchors := map[*contracts.MemoryBlock]struct{}{
 		mainBlock: {},
@@ -66,7 +72,7 @@ func (me *parser) parse(fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, e
 			name = commons.FromCString(v2.FileSuffix[:])
 		}
 		var subBlock, subHeaderBlock *contracts.MemoryBlock
-		subBlock, subHeaderBlock, imgsBlocks, err = me.addCache(root, cache, fmt.Sprintf("Sub Cache %s", name), subcontracts.RelativeAddress64(cache.BaseAddress()), imgsBlocks)
+		subBlock, subHeaderBlock, err = me.addCache(root, cache, fmt.Sprintf("Sub Cache %s", name), subcontracts.RelativeAddress64(cache.BaseAddress()))
 		if err != nil {
 			return nil, err
 		}
@@ -83,6 +89,8 @@ func (me *parser) parse(fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, e
 				return me.addSubCacheEntry(subCacheEntries, headerBlock, subHeaderBlock, fetcher.Header(), v2, v1, uint64(i))
 			}
 		}(uint64(i)))
+
+		me.clearNonGlobalCategories()
 	}
 
 	if len(subCacheEntriesFn) > 0 {
@@ -111,6 +119,32 @@ func rebalance(root *contracts.MemoryBlock, anchors map[*contracts.MemoryBlock]s
 		return ok
 	}
 
+	b2i := func(b bool) int {
+		if b {
+			return 1
+		}
+		return 0
+	}
+
+	lessThan := func(a, b *contracts.MemoryBlock) bool {
+		criteria := []int{
+			b2i(a.Size == 0) - b2i(b.Size == 0),
+			-int(a.Size - b.Size),
+			len(a.Values) - len(b.Values),
+			strings.Compare(a.Name, b.Name),
+		}
+		for _, c := range criteria {
+			if c == 0 {
+				continue
+			} else if c < 0 {
+				return true
+			} else {
+				return false
+			}
+		}
+		return false
+	}
+
 	allBlocks := map[uintptr]*[]*contracts.MemoryBlock{}
 
 	commons.VisitEachBlockAdvanced(root, commons.VisitorSetup{
@@ -128,11 +162,9 @@ func rebalance(root *contracts.MemoryBlock, anchors map[*contracts.MemoryBlock]s
 				allBlocks[block.Address] = sameAddress
 			}
 
-			size := block.GetSize()
 			added := false
 			for i, curr := range *sameAddress {
-				currSize := curr.GetSize()
-				if block.Size == 0 || size > currSize || (size == currSize && len(block.Values) < len(curr.Values)) {
+				if lessThan(block, curr) {
 					*sameAddress = slices.Insert(*sameAddress, i, block)
 					added = true
 					break

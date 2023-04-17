@@ -2,6 +2,7 @@ package parse
 
 import (
 	"fmt"
+	"math"
 	"unsafe"
 
 	"github.com/LouisBrunner/mem-viz/pkg/commons"
@@ -28,30 +29,9 @@ func (me *parser) parseMachO(frame *blockFrame, parent *contracts.MemoryBlock, p
 		return nil, err
 	}
 
-	linkEditBase := uintptr(0)
+	var linkEdit *contracts.MemoryBlock
 	err = me.forEachMachOLoadCommand(subFrame, header, cmdsOffset, baseAddress, func(i int, address subcontracts.UnslidAddress, baseCommand subcontracts.LoadCommand) error {
-		switch baseCommand.Cmd {
-		case subcontracts.LC_SEGMENT:
-			return fmt.Errorf("32-bit segments are not supported at the moment")
-		case subcontracts.LC_SEGMENT_64:
-			segment := subcontracts.SegmentCommand64{}
-			err := commons.Unpack(address.GetReader(subFrame.cache, 0, me.slide), &segment)
-			if err != nil {
-				return err
-			}
-			if commons.FromCString(segment.SegName[:]) == "__LINKEDIT" {
-				linkEditBase = uintptr(segment.VMAddr) + uintptr(me.slide)
-			}
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	err = me.forEachMachOLoadCommand(subFrame, header, cmdsOffset, baseAddress, func(i int, address subcontracts.UnslidAddress, baseCommand subcontracts.LoadCommand) error {
-		loadStruct, postParsing, err := me.getMachOLoadCommandParser(baseCommand)
+		loadStruct, postParsing, err := me.getMachOLoadCommandParser(subFrame, baseCommand)
 		if err != nil {
 			return err
 		}
@@ -73,9 +53,19 @@ func (me *parser) parseMachO(frame *blockFrame, parent *contracts.MemoryBlock, p
 		}
 		if postParsing != nil {
 			postDataAddress := address + subcontracts.UnslidAddress(lcHeader.Size)
-			err = postParsing(subFrame.pushFrame(parent, lcHeader), address, postDataAddress, linkEditBase)
+			lcBlock, err := postParsing(subFrame.pushFrame(parent, lcHeader), path, address, postDataAddress, linkEdit)
 			if err != nil {
 				return err
+			}
+
+			switch baseCommand.Cmd {
+			case subcontracts.LC_SEGMENT:
+				fallthrough
+			case subcontracts.LC_SEGMENT_64:
+				val := findValue(lcHeader, "SegName")
+				if val != nil && val.Value == "__LINKEDIT" {
+					linkEdit = lcBlock
+				}
 			}
 		} else if parent != commandsBlock {
 			return fmt.Errorf("incomplete parsing for %s > %s", path, label)
@@ -112,61 +102,217 @@ func (me *parser) forEachMachOLoadCommand(frame *blockFrame, header subcontracts
 	return nil
 }
 
-type machOLoadCommandParser func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error
+type machOLoadCommandParser func(frame *blockFrame, path string, base, after subcontracts.Address, linkEdit *contracts.MemoryBlock) (*contracts.MemoryBlock, error)
 
-func (me *parser) getMachOLoadCommandParser(baseCommand subcontracts.LoadCommand) (interface{}, machOLoadCommandParser, error) {
+func (me *parser) getMachOLoadCommandParser(frame *blockFrame, baseCommand subcontracts.LoadCommand) (interface{}, machOLoadCommandParser, error) {
 	var subCommand interface{}
 	var postParsing machOLoadCommandParser
 
 	addString := func(label string, offset *subcontracts.RelativeAddress32) machOLoadCommandParser {
-		return func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
+		return func(frame *blockFrame, path string, base, after subcontracts.Address, linkEdit *contracts.MemoryBlock) (*contracts.MemoryBlock, error) {
 			str := readCString(base.GetReader(frame.cache, uint64(*offset), me.slide))
-			_, err := me.createBlobBlock(frame, label, subcontracts.ManualAddress(*offset), "", uint64(len(str)+1), fmt.Sprintf("%s: %s", label, str))
-			return err
+			return me.createBlobBlock(frame, label, subcontracts.ManualAddress(*offset), "", uint64(len(str)+1), fmt.Sprintf("%s: %s", label, str))
 		}
 	}
 
-	handleObsolete := func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
-		return fmt.Errorf("obsolete load command, unsupported")
+	usePostLinkEdit := func(parent *contracts.MemoryBlock, apply func(ple *contracts.MemoryBlock) (*contracts.MemoryBlock, error)) (*contracts.MemoryBlock, error) {
+		ple, err := me.findOrCreateUniqueBlock(categoryPostLinkEdit, func(i int, block *contracts.MemoryBlock) bool {
+			return true
+		}, func() (*contracts.MemoryBlock, error) {
+			block, err := me.createCommonBlock(parent, "Post Link Edit", subcontracts.ManualAddress(0), 0)
+			if err != nil {
+				return nil, err
+			}
+			block.Address = math.MaxUint64
+			return block, nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		block, err := apply(ple)
+		if err != nil {
+			return nil, err
+		}
+		if block == nil {
+			return nil, nil
+		}
+		if block.Address < ple.Address {
+			ple.Address = block.Address
+			ple.Size += block.GetSize()
+		} else if !isInsideOf(block, ple) {
+			ple.Size = uint64(block.Address) - uint64(ple.Address) + block.GetSize()
+		}
+		return block, nil
 	}
 
-	handlePrivate := func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
-		return fmt.Errorf("private load command, unsupported")
+	addSegment := func(segment *subcontracts.SegmentCommand64) machOLoadCommandParser {
+		addSegmentHelper := func(frame *blockFrame, base, after subcontracts.Address, linkEdit *contracts.MemoryBlock, prefix string) (*contracts.MemoryBlock, error) {
+			blob, err := me.createBlobBlock(frame, "VMAddr", segment.VMAddr, "VMSize", segment.VMSize, fmt.Sprintf("%sSegment %s", prefix, commons.FromCString(segment.SegName[:])))
+			if err != nil {
+				return nil, err
+			}
+			// TODO: don't know how to interpret this correctly, but it's basically duplicate information anyway
+			// err = me.addLinkWithOffset(frame, "FileOff", segment.FileOff, "points to")
+			// if err != nil {
+			// 	return nil, err
+			// }
+			// if me.addSizeLink {
+			// 	err = addLink(frame.parentStruct, "FileSize", blob, "gives size to")
+			// 	if err != nil {
+			// 		return nil, err
+			// 	}
+			// }
+			return blob, nil
+		}
+
+		return func(frame *blockFrame, path string, base, after subcontracts.Address, linkEdit *contracts.MemoryBlock) (*contracts.MemoryBlock, error) {
+			if commons.FromCString(segment.SegName[:]) == "__LINKEDIT" {
+				absAddr := segment.VMAddr.AddBase(frame.parent.Address).Calculate(me.slide)
+
+				return me.findOrCreateUniqueBlock(categoryLinkEdit, func(i int, block *contracts.MemoryBlock) bool {
+					return block.Address == absAddr
+				}, func() (*contracts.MemoryBlock, error) {
+					return addSegmentHelper(frame, base, after, linkEdit, "")
+				})
+			}
+
+			return addSegmentHelper(frame, base, after, linkEdit, fmt.Sprintf("%s > ", path))
+		}
+	}
+
+	addLESection := func(le *subcontracts.LinkEditDataCommand, extra func(block *contracts.MemoryBlock) error) machOLoadCommandParser {
+		return func(frame *blockFrame, path string, base, after subcontracts.Address, linkEdit *contracts.MemoryBlock) (*contracts.MemoryBlock, error) {
+			return usePostLinkEdit(frame.parent, func(ple *contracts.MemoryBlock) (*contracts.MemoryBlock, error) {
+				if le.DataOff == 0 {
+					return nil, nil
+				}
+				offset := subcontracts.UnslidAddress(linkEdit.Address + uintptr(le.DataOff) - uintptr(me.slide))
+				block, err := me.createBlobBlock(frame, "DataOff", offset, "DataSize", uint64(le.DataSize), fmt.Sprintf("%s > %s", path, subcontracts.LC2String(le.Cmd)))
+				if err != nil {
+					return nil, err
+				}
+				if block == nil {
+					return nil, nil
+				}
+				if extra != nil {
+					err = extra(block)
+				}
+				return block, err
+			})
+		}
+	}
+
+	type fieldLookup struct {
+		labelOffset string
+		offset      subcontracts.LinkEditOffset
+		labelSize   string
+		size        uint32
+	}
+
+	addDYLDInfo := func(di *subcontracts.DYLDInfoCommand, extra func(block *contracts.MemoryBlock) error) machOLoadCommandParser {
+		return func(frame *blockFrame, path string, base, after subcontracts.Address, linkEdit *contracts.MemoryBlock) (*contracts.MemoryBlock, error) {
+			fields := map[string]fieldLookup{
+				"Rebase":   {"RebaseOff", di.RebaseOff, "RebaseSize", di.RebaseSize},
+				"Bind":     {"BindOff", di.BindOff, "BindSize", di.BindSize},
+				"WeakBind": {"WeakBindOff", di.WeakBindOff, "WeakBindSize", di.WeakBindSize},
+				"LazyBind": {"LazyBindOff", di.LazyBindOff, "LazyBindSize", di.LazyBindSize},
+				"Export":   {"ExportOff", di.ExportOff, "ExportSize", di.ExportSize},
+			}
+			for label, field := range fields {
+				_, err := usePostLinkEdit(frame.parent, func(ple *contracts.MemoryBlock) (*contracts.MemoryBlock, error) {
+					if field.offset == 0 {
+						return nil, nil
+					}
+					offset := subcontracts.UnslidAddress(linkEdit.Address + uintptr(field.offset) - uintptr(me.slide))
+					block, err := me.createBlobBlock(frame, field.labelOffset, offset, field.labelSize, uint64(field.size), fmt.Sprintf("%s > %s > %s", path, subcontracts.LC2String(di.Cmd), label))
+					if err != nil {
+						return nil, err
+					}
+					if block == nil {
+						return nil, nil
+					}
+					if extra != nil {
+						err = extra(block)
+					}
+					return block, err
+				})
+				if err != nil {
+					return nil, err
+				}
+			}
+			return nil, nil
+		}
+	}
+
+	// FIXME: untestable
+	handleObsolete := func(frame *blockFrame, path string, base, after subcontracts.Address, linkEdit *contracts.MemoryBlock) (*contracts.MemoryBlock, error) {
+		return nil, fmt.Errorf("obsolete load command, unsupported")
+	}
+
+	// FIXME: untestable AND difficult to find
+	handlePrivate := func(frame *blockFrame, path string, base, after subcontracts.Address, linkEdit *contracts.MemoryBlock) (*contracts.MemoryBlock, error) {
+		return nil, fmt.Errorf("private load command, unsupported")
+	}
+
+	// FIXME: unused
+	handleUnused := func(frame *blockFrame, path string, base, after subcontracts.Address, linkEdit *contracts.MemoryBlock) (*contracts.MemoryBlock, error) {
+		return nil, fmt.Errorf("unusued load command, currently unsupported")
+	}
+
+	// FIXME: unused but have a common struct
+	handleUnusedExtra := func(block *contracts.MemoryBlock) error {
+		return fmt.Errorf("unusued load command, currently unsupported")
 	}
 
 	switch baseCommand.Cmd {
 	case subcontracts.LC_SEGMENT:
 		realCommand := subcontracts.SegmentCommand{}
 		subCommand = &realCommand
-		postParsing = func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
-			return nil // TODO: finish
+		postParsing = func(frame *blockFrame, path string, base, after subcontracts.Address, linkEdit *contracts.MemoryBlock) (*contracts.MemoryBlock, error) {
+			return addSegment(&subcontracts.SegmentCommand64{
+				Cmd:      subcontracts.LC_SEGMENT_64,
+				CmdSize:  realCommand.CmdSize,
+				SegName:  realCommand.SegName,
+				VMAddr:   subcontracts.UnslidAddress(realCommand.VMAddr),
+				VMSize:   uint64(realCommand.VMSize),
+				FileOff:  subcontracts.RelativeAddress64(realCommand.FileOff),
+				FileSize: uint64(realCommand.FileSize),
+				MaxProt:  realCommand.MaxProt,
+				InitProt: realCommand.InitProt,
+				NSects:   realCommand.NSects,
+				Flags:    realCommand.Flags,
+			})(frame, path, base, after, linkEdit)
 		}
 	case subcontracts.LC_SYMTAB:
 		realCommand := subcontracts.SymtabCommand{}
 		subCommand = &realCommand
-		postParsing = func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
-			return nil // TODO: finish
+		postParsing = func(frame *blockFrame, path string, base, after subcontracts.Address, linkEdit *contracts.MemoryBlock) (*contracts.MemoryBlock, error) {
+
+			return nil, nil // TODO: finish
 		}
 	case subcontracts.LC_SYMSEG:
 		realCommand := subcontracts.SymSegCommand{}
 		subCommand = &realCommand
 		postParsing = handleObsolete
 	case subcontracts.LC_THREAD:
-		realCommand := subcontracts.ThreadCommand{}
-		subCommand = &realCommand
-		postParsing = func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
-			return nil // TODO: finish
-		}
+		fallthrough
 	case subcontracts.LC_UNIXTHREAD:
-		realCommand := subcontracts.ThreadCommand{}
-		subCommand = &realCommand
-		postParsing = func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
-			return nil // TODO: finish
+		header := frame.cache.Header()
+		magic := commons.FromCString(header.Magic[:])
+		switch magic {
+		case subcontracts.MAGIC_arm64e:
+			fallthrough
+		case subcontracts.MAGIC_arm64:
+			subCommand = &subcontracts.ThreadCommandARM64{}
+		case subcontracts.MAGIC_x86_64:
+			fallthrough
+		case subcontracts.MAGIC_x86_64_HASWELL:
+			subCommand = &subcontracts.ThreadCommandX8664{}
+		default:
+			return nil, nil, fmt.Errorf("unsupported architecture: %s", magic)
 		}
 	case subcontracts.LC_LOADFVMLIB:
-		realCommand := subcontracts.FVMLibCommand{}
-		subCommand = &realCommand
-		postParsing = handleObsolete
+		fallthrough
 	case subcontracts.LC_IDFVMLIB:
 		realCommand := subcontracts.FVMLibCommand{}
 		subCommand = &realCommand
@@ -186,37 +332,39 @@ func (me *parser) getMachOLoadCommandParser(baseCommand subcontracts.LoadCommand
 	case subcontracts.LC_DYSYMTAB:
 		realCommand := subcontracts.DYSymTabCommand{}
 		subCommand = &realCommand
-		postParsing = func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
-			return nil // TODO: finish
+		postParsing = func(frame *blockFrame, path string, base, after subcontracts.Address, linkEdit *contracts.MemoryBlock) (*contracts.MemoryBlock, error) {
+			return nil, nil // TODO: finish
 		}
 	case subcontracts.LC_LOAD_DYLIB:
-		realCommand := subcontracts.DYLIBCommand{}
-		subCommand = &realCommand
-		postParsing = addString("Name", &realCommand.Name)
+		fallthrough
 	case subcontracts.LC_ID_DYLIB:
+		fallthrough
+	case subcontracts.LC_LOAD_WEAK_DYLIB:
+		fallthrough
+	case subcontracts.LC_REEXPORT_DYLIB:
+		fallthrough
+	case subcontracts.LC_LAZY_LOAD_DYLIB:
+		fallthrough
+	case subcontracts.LC_LOAD_UPWARD_DYLIB:
 		realCommand := subcontracts.DYLIBCommand{}
 		subCommand = &realCommand
 		postParsing = addString("Name", &realCommand.Name)
 	case subcontracts.LC_LOAD_DYLINKER:
-		realCommand := subcontracts.DylinkerCommand{}
-		subCommand = &realCommand
-		postParsing = addString("Name", &realCommand.Name)
+		fallthrough
 	case subcontracts.LC_ID_DYLINKER:
+		fallthrough
+	case subcontracts.LC_DYLD_ENVIRONMENT:
 		realCommand := subcontracts.DylinkerCommand{}
 		subCommand = &realCommand
 		postParsing = addString("Name", &realCommand.Name)
 	case subcontracts.LC_PREBOUND_DYLIB:
 		realCommand := subcontracts.PreboundDylibCommand{}
 		subCommand = &realCommand
-		postParsing = func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
-			return nil // TODO: finish
-		}
+		postParsing = handleUnused
 	case subcontracts.LC_ROUTINES:
 		realCommand := subcontracts.RoutinesCommand{}
 		subCommand = &realCommand
-		postParsing = func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
-			return nil // TODO: finish
-		}
+		postParsing = handleUnused
 	case subcontracts.LC_SUB_FRAMEWORK:
 		realCommand := subcontracts.SubFrameworkCommand{}
 		subCommand = &realCommand
@@ -236,31 +384,19 @@ func (me *parser) getMachOLoadCommandParser(baseCommand subcontracts.LoadCommand
 	case subcontracts.LC_TWOLEVEL_HINTS:
 		realCommand := subcontracts.TwoLevelHintsCommand{}
 		subCommand = &realCommand
-		postParsing = func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
-			return nil // TODO: finish
-		}
+		postParsing = handleUnused
 	case subcontracts.LC_PREBIND_CKSUM:
 		realCommand := subcontracts.PrebindCKSumCommand{}
 		subCommand = &realCommand
-		postParsing = func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
-			return nil // TODO: finish
-		}
-	case subcontracts.LC_LOAD_WEAK_DYLIB:
-		realCommand := subcontracts.DYLIBCommand{}
-		subCommand = &realCommand
-		postParsing = addString("Name", &realCommand.Name)
+		postParsing = handleUnused
 	case subcontracts.LC_SEGMENT_64:
 		realCommand := subcontracts.SegmentCommand64{}
 		subCommand = &realCommand
-		postParsing = func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
-			return nil // TODO: finish
-		}
+		postParsing = addSegment(&realCommand)
 	case subcontracts.LC_ROUTINES_64:
 		realCommand := subcontracts.RoutinesCommand64{}
 		subCommand = &realCommand
-		postParsing = func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
-			return nil // TODO: finish
-		}
+		postParsing = handleUnused
 	case subcontracts.LC_UUID:
 		realCommand := subcontracts.UUIDCommand{}
 		subCommand = &realCommand
@@ -269,139 +405,80 @@ func (me *parser) getMachOLoadCommandParser(baseCommand subcontracts.LoadCommand
 		subCommand = &realCommand
 		postParsing = addString("Path", &realCommand.Path)
 	case subcontracts.LC_CODE_SIGNATURE:
-		realCommand := subcontracts.LinkEditDataCommand{}
-		subCommand = &realCommand
-		postParsing = func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
-			return nil // TODO: finish
-		}
+		fallthrough
 	case subcontracts.LC_SEGMENT_SPLIT_INFO:
+		fallthrough
+	case subcontracts.LC_DYLD_CHAINED_FIXUPS:
+		fallthrough
+	case subcontracts.LC_LINKER_OPTIMIZATION_HINT:
+		fallthrough
+	case subcontracts.LC_DYLIB_CODE_SIGN_DRS:
 		realCommand := subcontracts.LinkEditDataCommand{}
 		subCommand = &realCommand
-		postParsing = func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
-			return nil // TODO: finish
-		}
-	case subcontracts.LC_REEXPORT_DYLIB:
-		realCommand := subcontracts.DYLIBCommand{}
-		subCommand = &realCommand
-		postParsing = addString("Name", &realCommand.Name)
-	case subcontracts.LC_LAZY_LOAD_DYLIB:
-		realCommand := subcontracts.DYLIBCommand{}
-		subCommand = &realCommand
-		postParsing = addString("Name", &realCommand.Name)
+		postParsing = addLESection(&realCommand, handleUnusedExtra)
 	case subcontracts.LC_ENCRYPTION_INFO:
 		realCommand := subcontracts.EncryptionInfoCommand{}
 		subCommand = &realCommand
-		postParsing = func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
-			return nil // TODO: finish
-		}
+		postParsing = handleUnused
 	case subcontracts.LC_DYLD_INFO:
 		realCommand := subcontracts.DYLDInfoCommand{}
 		subCommand = &realCommand
-		postParsing = func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
-			return nil // TODO: finish
-		}
+		postParsing = addDYLDInfo(&realCommand, nil) // TODO: would be nice to have deeper parsing of the content
 	case subcontracts.LC_DYLD_INFO_ONLY:
 		realCommand := subcontracts.DYLDInfoCommand{}
 		subCommand = &realCommand
-		postParsing = func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
-			return nil // TODO: finish
-		}
-	case subcontracts.LC_LOAD_UPWARD_DYLIB:
-		realCommand := subcontracts.DYLIBCommand{}
-		subCommand = &realCommand
-		postParsing = addString("Name", &realCommand.Name)
+		postParsing = addDYLDInfo(&realCommand, nil) // TODO: would be nice to have deeper parsing of the content
 	case subcontracts.LC_VERSION_MIN_MACOSX:
-		realCommand := subcontracts.VersionMinCommand{}
-		subCommand = &realCommand
+		fallthrough
 	case subcontracts.LC_VERSION_MIN_IPHONEOS:
+		fallthrough
+	case subcontracts.LC_VERSION_MIN_TVOS:
+		fallthrough
+	case subcontracts.LC_VERSION_MIN_WATCHOS:
 		realCommand := subcontracts.VersionMinCommand{}
 		subCommand = &realCommand
 	case subcontracts.LC_FUNCTION_STARTS:
 		realCommand := subcontracts.LinkEditDataCommand{}
 		subCommand = &realCommand
-		postParsing = func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
-			return nil // TODO: finish
-		}
-	case subcontracts.LC_DYLD_ENVIRONMENT:
-		realCommand := subcontracts.DylinkerCommand{}
-		subCommand = &realCommand
-		postParsing = addString("Name", &realCommand.Name)
+		postParsing = addLESection(&realCommand, nil) // TODO: would be nice to have deeper parsing of the content
 	case subcontracts.LC_MAIN:
 		realCommand := subcontracts.EntryPointCommand{}
 		subCommand = &realCommand
-		postParsing = func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
-			return nil // TODO: finish
-		}
+		postParsing = handleUnused
 	case subcontracts.LC_DATA_IN_CODE:
 		realCommand := subcontracts.LinkEditDataCommand{}
 		subCommand = &realCommand
-		postParsing = func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
-			return nil // TODO: finish
-		}
+		postParsing = addLESection(&realCommand, handleUnusedExtra) // FIXME: always empty, but would be nice to have deeper parsing of the content
 	case subcontracts.LC_SOURCE_VERSION:
 		realCommand := subcontracts.SourceVersionCommand{}
 		subCommand = &realCommand
-	case subcontracts.LC_DYLIB_CODE_SIGN_DRS:
-		realCommand := subcontracts.LinkEditDataCommand{}
-		subCommand = &realCommand
-		postParsing = func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
-			return nil // TODO: finish
-		}
 	case subcontracts.LC_ENCRYPTION_INFO_64:
 		realCommand := subcontracts.EncryptionInfoCommand64{}
 		subCommand = &realCommand
-		postParsing = func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
-			return nil // TODO: finish
-		}
+		postParsing = handleUnused
 	case subcontracts.LC_LINKER_OPTION:
 		realCommand := subcontracts.LinkerOptionCommand{}
 		subCommand = &realCommand
-		postParsing = func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
-			return nil // TODO: finish
-		}
-	case subcontracts.LC_LINKER_OPTIMIZATION_HINT:
-		realCommand := subcontracts.LinkEditDataCommand{}
-		subCommand = &realCommand
-		postParsing = func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
-			return nil // TODO: finish
-		}
-	case subcontracts.LC_VERSION_MIN_TVOS:
-		realCommand := subcontracts.VersionMinCommand{}
-		subCommand = &realCommand
-	case subcontracts.LC_VERSION_MIN_WATCHOS:
-		realCommand := subcontracts.VersionMinCommand{}
-		subCommand = &realCommand
+		postParsing = handleUnused
 	case subcontracts.LC_NOTE:
 		realCommand := subcontracts.NoteCommand{}
 		subCommand = &realCommand
-		postParsing = func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
-			return nil // TODO: finish
-		}
+		postParsing = handleUnused
 	case subcontracts.LC_BUILD_VERSION:
 		realCommand := subcontracts.BuildVersionCommand{}
 		subCommand = &realCommand
-		postParsing = func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
+		postParsing = func(frame *blockFrame, path string, base, after subcontracts.Address, linkEdit *contracts.MemoryBlock) (*contracts.MemoryBlock, error) {
 			_, _, err := me.parseAndAddArray(frame, "", after, "NTools", uint64(realCommand.NTools), &subcontracts.BuildToolVersion{}, "Tools")
-			return err
+			return nil, err
 		}
 	case subcontracts.LC_DYLD_EXPORTS_TRIE:
 		realCommand := subcontracts.LinkEditDataCommand{}
 		subCommand = &realCommand
-		postParsing = func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
-			return nil // TODO: finish
-		}
-	case subcontracts.LC_DYLD_CHAINED_FIXUPS:
-		realCommand := subcontracts.LinkEditDataCommand{}
-		subCommand = &realCommand
-		postParsing = func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
-			return nil // TODO: finish
-		}
+		postParsing = addLESection(&realCommand, nil) // TODO: would be nice to have deeper parsing of the content
 	case subcontracts.LC_FILESET_ENTRY:
 		realCommand := subcontracts.FilesetEntryCommand{}
 		subCommand = &realCommand
-		postParsing = func(frame *blockFrame, base, after subcontracts.Address, linkEditBase uintptr) error {
-			return nil // TODO: finish
-		}
+		postParsing = handleUnused
 	default:
 		return nil, nil, fmt.Errorf("unknown command %#x", baseCommand.Cmd)
 	}

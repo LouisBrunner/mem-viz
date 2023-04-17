@@ -132,6 +132,16 @@ func formatValue(name string, value interface{}) string {
 	switch v := value.(type) {
 	case subcontracts.UnslidAddress:
 		return formatInteger()
+	case subcontracts.UnslidAddress32:
+		return formatInteger()
+	case subcontracts.RelativeAddress32:
+		return formatInteger()
+	case subcontracts.RelativeAddress64:
+		return formatInteger()
+	case subcontracts.LinkEditOffset:
+		return formatInteger()
+	case subcontracts.ManualAddress:
+		return formatInteger()
 	case uint:
 		return formatInteger()
 	case uint8:
@@ -181,4 +191,13 @@ func isInsideOf(child, parent *contracts.MemoryBlock) bool {
 
 func roundUp(x, y uint64) uint64 {
 	return (x + y - 1) / y * y
+}
+
+func findValue(block *contracts.MemoryBlock, name string) *contracts.MemoryValue {
+	for _, v := range block.Values {
+		if v.Name == name {
+			return v
+		}
+	}
+	return nil
 }

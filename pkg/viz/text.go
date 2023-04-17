@@ -49,10 +49,11 @@ func (me *outputter) Text(m contracts.MemoryBlock) error {
 	builder := stringBuilder{w: me.w}
 
 	formatAddr := "%#016x"
-	formatNoAddr := "%17s"
+	formatNoAddr := "%18s"
 	formatSize := "[%6s]"
 	formatNoSize := "%8s"
 	formatLink := fmt.Sprintf("%s %s %s <- %%s\n", formatAddr, formatNoAddr, formatNoSize)
+	formatSkip := fmt.Sprintf("%s %s %s %%sSKIPPED (%%d items)\n", formatNoAddr, formatNoAddr, formatNoSize)
 	formatMem := fmt.Sprintf("%s-%s %s %%s%%s%%s%%s\n", formatAddr, formatAddr, formatSize)
 	formatUnused := fmt.Sprintf("%s-%s %s %%sUNUSED\n", formatAddr, formatAddr, formatSize)
 
@@ -67,6 +68,9 @@ func (me *outputter) Text(m contracts.MemoryBlock) error {
 		depths := maps.Keys(parentsEnd)
 		slices.Sort(depths)
 		for i := len(depths) - 1; i >= 0 && depths[i] >= depth; i-- {
+			if hidden[i] {
+				continue
+			}
 			idepth := depths[i]
 			scopeEnd := parentsEnd[idepth]
 			if from < scopeEnd && scopeEnd <= to {
@@ -136,6 +140,9 @@ func (me *outputter) Text(m contracts.MemoryBlock) error {
 				details = fmt.Sprintf(" {%s}", strings.Join(detailsList, ","))
 			}
 			builder.Writef(formatMem, block.Address, block.Address+uintptr(size), humanize.Bytes(size), indent(ctx.Depth, indentStr), block.Name, details, linksSuffix)
+			if thresholdsArrayTooBig != 0 && len(block.Content) > thresholdsArrayTooBig {
+				builder.Writef(formatSkip, "", "", "", indent(ctx.Depth+1, indentStr), len(block.Content))
+			}
 		} else {
 			hidden[ctx.Depth] = true
 		}

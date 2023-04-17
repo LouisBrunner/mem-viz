@@ -81,4 +81,22 @@ func (me UnslidAddress) Invalid() bool {
 	return me == 0
 }
 
+type UnslidAddress32 uint32
+
+func (me UnslidAddress32) AddBase(base uintptr) Address {
+	return me
+}
+
+func (me UnslidAddress32) Calculate(slide uint64) uintptr {
+	return uintptr(me) + uintptr(slide)
+}
+
+func (me UnslidAddress32) GetReader(cache Cache, offset, slide uint64) io.Reader {
+	return cache.ReaderAbsolute(uint64(me) + offset + slide)
+}
+
+func (me UnslidAddress32) Invalid() bool {
+	return me == 0
+}
+
 type LinkEditOffset uint32

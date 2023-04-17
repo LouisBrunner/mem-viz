@@ -325,17 +325,17 @@ func LC2String(lc uint32) string {
 // section structures directly follow the segment command and their size is
 // reflected in cmdsize.
 type SegmentCommand struct { // for 32-bit architectures
-	Cmd      uint32   `struc:"little"` // LC_SEGMENT
-	CmdSize  uint32   `struc:"little"` // includes sizeof section structs
-	SegName  [16]byte // segment name
-	VMAddr   uint32   `struc:"little"` // memory address of this segment
-	VMSize   uint32   `struc:"little"` // memory size of this segment
-	FileOff  uint32   `struc:"little"` // file offset of this segment
-	FileSize uint32   `struc:"little"` // amount to map from the file
-	MaxProt  int32    `struc:"little"` // maximum VM protection
-	InitProt int32    `struc:"little"` // initial VM protection
-	NSects   uint32   `struc:"little"` // number of sections in segment
-	Flags    uint32   `struc:"little"` // flags
+	Cmd      uint32            `struc:"little"` // LC_SEGMENT
+	CmdSize  uint32            `struc:"little"` // includes sizeof section structs
+	SegName  [16]byte          // segment name
+	VMAddr   UnslidAddress32   `struc:"little"` // memory address of this segment
+	VMSize   uint32            `struc:"little"` // memory size of this segment
+	FileOff  RelativeAddress32 `struc:"little"` // file offset of this segment
+	FileSize uint32            `struc:"little"` // amount to map from the file
+	MaxProt  int32             `struc:"little"` // maximum VM protection
+	InitProt int32             `struc:"little"` // initial VM protection
+	NSects   uint32            `struc:"little"` // number of sections in segment
+	Flags    uint32            `struc:"little"` // flags
 }
 
 // The 64-bit segment load command indicates that a part of this file is to be
@@ -343,17 +343,17 @@ type SegmentCommand struct { // for 32-bit architectures
 // sections then section64 structures directly follow the 64-bit segment
 // command and their size is reflected in cmdsize.
 type SegmentCommand64 struct { // for 64-bit architectures
-	Cmd      uint32   `struc:"little"` // LC_SEGMENT_64
-	CmdSize  uint32   `struc:"little"` // includes sizeof section64 structs
-	SegName  [16]byte // segment name
-	VMAddr   uint64   `struc:"little"` // memory address of this segment
-	VMSize   uint64   `struc:"little"` // memory size of this segment
-	FileOff  uint64   `struc:"little"` // file offset of this segment
-	FileSize uint64   `struc:"little"` // amount to map from the file
-	MaxProt  int32    `struc:"little"` // maximum VM protection
-	InitProt int32    `struc:"little"` // initial VM protection
-	NSects   uint32   `struc:"little"` // number of sections in segment
-	Flags    uint32   `struc:"little"` // flags
+	Cmd      uint32            `struc:"little"` // LC_SEGMENT_64
+	CmdSize  uint32            `struc:"little"` // includes sizeof section64 structs
+	SegName  [16]byte          // segment name
+	VMAddr   UnslidAddress     `struc:"little"` // memory address of this segment
+	VMSize   uint64            `struc:"little"` // memory size of this segment
+	FileOff  RelativeAddress64 `struc:"little"` // file offset of this segment
+	FileSize uint64            `struc:"little"` // amount to map from the file
+	MaxProt  int32             `struc:"little"` // maximum VM protection
+	InitProt int32             `struc:"little"` // initial VM protection
+	NSects   uint32            `struc:"little"` // number of sections in segment
+	Flags    uint32            `struc:"little"` // flags
 }
 
 // Constants for the flags field of the segment_command
@@ -688,13 +688,45 @@ type DylinkerCommand struct {
 // This is the same as a LC_THREAD, except that a stack is automatically
 // created (based on the shell's limit for the stack size).  Command arguments
 // and environment variables are copied onto that stack.
-type ThreadCommand struct {
+type ThreadCommandCommon struct {
 	Cmd     uint32 `struc:"little"` // LC_THREAD or  LC_UNIXTHREAD
 	CmdSize uint32 `struc:"little"` // total size of this command
-	// uint32 flavor		   flavor of thread state
-	// uint32 count		   count of uint32's in thread state
-	// struct XXX_thread_state state   thread state for this flavor
-	// ...
+}
+
+type ThreadCommandARM64 struct {
+	ThreadCommandCommon
+	X    [29]uint64 `struc:"little"`
+	FP   uint64     `struc:"little"`
+	LR   uint64     `struc:"little"`
+	SP   uint64     `struc:"little"`
+	PC   uint64     `struc:"little"`
+	CPSR uint32     `struc:"little"`
+	PAD  uint64     `struc:"little"`
+}
+
+type ThreadCommandX8664 struct {
+	ThreadCommandCommon
+	RAX    uint64 `struc:"little"`
+	RBX    uint64 `struc:"little"`
+	RCX    uint64 `struc:"little"`
+	RDX    uint64 `struc:"little"`
+	RDI    uint64 `struc:"little"`
+	RSI    uint64 `struc:"little"`
+	RBP    uint64 `struc:"little"`
+	RSP    uint64 `struc:"little"`
+	R8     uint64 `struc:"little"`
+	R9     uint64 `struc:"little"`
+	R10    uint64 `struc:"little"`
+	R11    uint64 `struc:"little"`
+	R12    uint64 `struc:"little"`
+	R13    uint64 `struc:"little"`
+	R14    uint64 `struc:"little"`
+	R15    uint64 `struc:"little"`
+	RIP    uint64 `struc:"little"`
+	RFlags uint64 `struc:"little"`
+	CS     uint64 `struc:"little"`
+	FS     uint64 `struc:"little"`
+	GS     uint64 `struc:"little"`
 }
 
 // The routines command contains the address of the dynamic shared library
@@ -1051,10 +1083,10 @@ type RPathCommand struct {
 // The linkedit_data_command contains the offsets and sizes of a blob
 // of data in the __LINKEDIT segment.
 type LinkEditDataCommand struct {
-	Cmd      uint32 `struc:"little"` // LC_CODE_SIGNATURE, LC_SEGMENT_SPLIT_INFO, LC_FUNCTION_STARTS, LC_DATA_IN_CODE, LC_DYLIB_CODE_SIGN_DRS, LC_LINKER_OPTIMIZATION_HINT, LC_DYLD_EXPORTS_TRIE, or LC_DYLD_CHAINED_FIXUPS.
-	CmdSize  uint32 `struc:"little"` // sizeof(struct linkedit_data_command)
-	DataOff  uint32 `struc:"little"` // file offset of data in __LINKEDIT segment
-	DataSize uint32 `struc:"little"` // file size of data in __LINKEDIT segment
+	Cmd      uint32         `struc:"little"` // LC_CODE_SIGNATURE, LC_SEGMENT_SPLIT_INFO, LC_FUNCTION_STARTS, LC_DATA_IN_CODE, LC_DYLIB_CODE_SIGN_DRS, LC_LINKER_OPTIMIZATION_HINT, LC_DYLD_EXPORTS_TRIE, or LC_DYLD_CHAINED_FIXUPS.
+	CmdSize  uint32         `struc:"little"` // sizeof(struct linkedit_data_command)
+	DataOff  LinkEditOffset `struc:"little"` // file offset of data in __LINKEDIT segment
+	DataSize uint32         `struc:"little"` // file size of data in __LINKEDIT segment
 }
 
 type FilesetEntryCommand struct {
@@ -1156,8 +1188,8 @@ type DYLDInfoCommand struct {
 	// like "every n'th offset for m times" can be encoded in a few
 	// bytes.
 
-	RebaseOff  uint32 `struc:"little"` // file offset to rebase info
-	RebaseSize uint32 `struc:"little"` // size of rebase info
+	RebaseOff  LinkEditOffset `struc:"little"` // file offset to rebase info
+	RebaseSize uint32         `struc:"little"` // size of rebase info
 
 	// Dyld binds an image during the loading process, if the image
 	// requires any pointers to be initialized to symbols in other images.
@@ -1170,8 +1202,8 @@ type DYLDInfoCommand struct {
 	// like for runs of pointers initialzed to the same value can be
 	// encoded in a few bytes.
 
-	BindOff  uint32 `struc:"little"` // file offset to binding info
-	BindSize uint32 `struc:"little"` // size of binding info
+	BindOff  LinkEditOffset `struc:"little"` // file offset to binding info
+	BindSize uint32         `struc:"little"` // size of binding info
 
 	// Some C++ programs require dyld to unique symbols so that all
 	// images in the process use the same copy of some code/data.
@@ -1187,8 +1219,8 @@ type DYLDInfoCommand struct {
 	// that is detected when the weak_bind information is processed
 	// and the call to operator new is then rebound.
 
-	WeakBindOff  uint32 `struc:"little"` // file offset to weak binding info
-	WeakBindSize uint32 `struc:"little"` // size of weak binding info
+	WeakBindOff  LinkEditOffset `struc:"little"` // file offset to weak binding info
+	WeakBindSize uint32         `struc:"little"` // size of weak binding info
 
 	// Some uses of external symbols do not need to be bound immediately.
 	// Instead they can be lazily bound on first use.  The lazy_bind
@@ -1201,8 +1233,8 @@ type DYLDInfoCommand struct {
 	// the offset to lazy_bind_off to get the information on what
 	// to bind.
 
-	LazyBindOff  uint32 `struc:"little"` // file offset to lazy binding info
-	LazyBindSize uint32 `struc:"little"` // size of lazy binding infs
+	LazyBindOff  LinkEditOffset `struc:"little"` // file offset to lazy binding info
+	LazyBindSize uint32         `struc:"little"` // size of lazy binding infs
 
 	// The symbols exported by a dylib are encoded in a trie.  This
 	// is a compact representation that factors out common prefixes.
@@ -1234,8 +1266,8 @@ type DYLDInfoCommand struct {
 	//  in the symbol, followed by a uleb128 offset for the node that
 	//  edge points to.
 
-	ExportOff  uint32 `struc:"little"` // file offset to lazy binding info
-	ExportSize uint32 `struc:"little"` // size of lazy binding infs
+	ExportOff  LinkEditOffset `struc:"little"` // file offset to lazy binding info
+	ExportSize uint32         `struc:"little"` // size of lazy binding infs
 }
 
 // The following are used to encode rebasing information
