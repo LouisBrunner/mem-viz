@@ -14,6 +14,7 @@ const (
 	categoryMappings     category = iota
 	categoryLinkEdit     category = iota
 	categoryPostLinkEdit category = iota
+	categoryStrings      category = iota
 )
 
 var allCategories = []category{
@@ -21,6 +22,7 @@ var allCategories = []category{
 	categoryImages,
 	categoryMappings,
 	categoryLinkEdit,
+	categoryStrings,
 }
 
 func (me category) IsGlobal() bool {
@@ -28,6 +30,8 @@ func (me category) IsGlobal() bool {
 	case categoryImages:
 		fallthrough
 	case categoryLinkEdit:
+		fallthrough
+	case categoryStrings:
 		fallthrough
 	case categoryPostLinkEdit:
 		return true

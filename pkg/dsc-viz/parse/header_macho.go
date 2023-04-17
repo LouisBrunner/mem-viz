@@ -108,6 +108,10 @@ func (me *parser) getMachOLoadCommandParser(frame *blockFrame, baseCommand subco
 	var subCommand interface{}
 	var postParsing machOLoadCommandParser
 
+	calculateLEAddress := func(linkEdit *contracts.MemoryBlock, offset subcontracts.LinkEditOffset) subcontracts.Address {
+		return subcontracts.UnslidAddress(linkEdit.Address + uintptr(offset) - uintptr(me.slide))
+	}
+
 	addString := func(label string, offset *subcontracts.RelativeAddress32) machOLoadCommandParser {
 		return func(frame *blockFrame, path string, base, after subcontracts.Address, linkEdit *contracts.MemoryBlock) (*contracts.MemoryBlock, error) {
 			str := readCString(base.GetReader(frame.cache, uint64(*offset), me.slide))
@@ -186,7 +190,7 @@ func (me *parser) getMachOLoadCommandParser(frame *blockFrame, baseCommand subco
 				if le.DataOff == 0 {
 					return nil, nil
 				}
-				offset := subcontracts.UnslidAddress(linkEdit.Address + uintptr(le.DataOff) - uintptr(me.slide))
+				offset := calculateLEAddress(linkEdit, le.DataOff)
 				block, err := me.createBlobBlock(frame, "DataOff", offset, "DataSize", uint64(le.DataSize), fmt.Sprintf("%s > %s", path, subcontracts.LC2String(le.Cmd)))
 				if err != nil {
 					return nil, err
@@ -209,22 +213,15 @@ func (me *parser) getMachOLoadCommandParser(frame *blockFrame, baseCommand subco
 		size        uint32
 	}
 
-	addDYLDInfo := func(di *subcontracts.DYLDInfoCommand, extra func(block *contracts.MemoryBlock) error) machOLoadCommandParser {
+	addLEOffsetFields := func(label string, fields map[string]fieldLookup, extra func(block *contracts.MemoryBlock) error) machOLoadCommandParser {
 		return func(frame *blockFrame, path string, base, after subcontracts.Address, linkEdit *contracts.MemoryBlock) (*contracts.MemoryBlock, error) {
-			fields := map[string]fieldLookup{
-				"Rebase":   {"RebaseOff", di.RebaseOff, "RebaseSize", di.RebaseSize},
-				"Bind":     {"BindOff", di.BindOff, "BindSize", di.BindSize},
-				"WeakBind": {"WeakBindOff", di.WeakBindOff, "WeakBindSize", di.WeakBindSize},
-				"LazyBind": {"LazyBindOff", di.LazyBindOff, "LazyBindSize", di.LazyBindSize},
-				"Export":   {"ExportOff", di.ExportOff, "ExportSize", di.ExportSize},
-			}
 			for label, field := range fields {
 				_, err := usePostLinkEdit(frame.parent, func(ple *contracts.MemoryBlock) (*contracts.MemoryBlock, error) {
 					if field.offset == 0 {
 						return nil, nil
 					}
-					offset := subcontracts.UnslidAddress(linkEdit.Address + uintptr(field.offset) - uintptr(me.slide))
-					block, err := me.createBlobBlock(frame, field.labelOffset, offset, field.labelSize, uint64(field.size), fmt.Sprintf("%s > %s > %s", path, subcontracts.LC2String(di.Cmd), label))
+					offset := calculateLEAddress(linkEdit, field.offset)
+					block, err := me.createBlobBlock(frame, field.labelOffset, offset, field.labelSize, uint64(field.size), fmt.Sprintf("%s > %s > %s", path, label, label))
 					if err != nil {
 						return nil, err
 					}
@@ -242,6 +239,16 @@ func (me *parser) getMachOLoadCommandParser(frame *blockFrame, baseCommand subco
 			}
 			return nil, nil
 		}
+	}
+
+	addDYLDInfo := func(di *subcontracts.DYLDInfoCommand, extra func(block *contracts.MemoryBlock) error) machOLoadCommandParser {
+		return addLEOffsetFields(subcontracts.LC2String(di.Cmd), map[string]fieldLookup{
+			"Rebase":   {"RebaseOff", di.RebaseOff, "RebaseSize", di.RebaseSize},
+			"Bind":     {"BindOff", di.BindOff, "BindSize", di.BindSize},
+			"WeakBind": {"WeakBindOff", di.WeakBindOff, "WeakBindSize", di.WeakBindSize},
+			"LazyBind": {"LazyBindOff", di.LazyBindOff, "LazyBindSize", di.LazyBindSize},
+			"Export":   {"ExportOff", di.ExportOff, "ExportSize", di.ExportSize},
+		}, extra)
 	}
 
 	// FIXME: untestable
@@ -287,8 +294,21 @@ func (me *parser) getMachOLoadCommandParser(frame *blockFrame, baseCommand subco
 		realCommand := subcontracts.SymtabCommand{}
 		subCommand = &realCommand
 		postParsing = func(frame *blockFrame, path string, base, after subcontracts.Address, linkEdit *contracts.MemoryBlock) (*contracts.MemoryBlock, error) {
-
-			return nil, nil // TODO: finish
+			entrySize := uint32(unsafe.Sizeof(uint32(0)))
+			block, err := addLEOffsetFields("SYMTAB", map[string]fieldLookup{
+				"Symbols": {"SymOff", realCommand.SymOff, "NSyms", realCommand.NSyms * entrySize},
+			}, nil)(frame, path, base, after, linkEdit)
+			if err != nil {
+				return nil, err
+			}
+			strAddr := calculateLEAddress(linkEdit, realCommand.StrOff)
+			_, err = me.findOrCreateUniqueBlock(categoryStrings, func(i int, block *contracts.MemoryBlock) bool {
+				return block.Address == strAddr.Calculate(me.slide)
+			}, func() (*contracts.MemoryBlock, error) {
+				// FIXME: would be nice to parse all those strings but probably _very_ noisy
+				return me.createBlobBlock(frame, "StrOff", strAddr, "StrSize", uint64(realCommand.StrSize), "Strings")
+			})
+			return block, err
 		}
 	case subcontracts.LC_SYMSEG:
 		realCommand := subcontracts.SymSegCommand{}
@@ -333,7 +353,15 @@ func (me *parser) getMachOLoadCommandParser(frame *blockFrame, baseCommand subco
 		realCommand := subcontracts.DYSymTabCommand{}
 		subCommand = &realCommand
 		postParsing = func(frame *blockFrame, path string, base, after subcontracts.Address, linkEdit *contracts.MemoryBlock) (*contracts.MemoryBlock, error) {
-			return nil, nil // TODO: finish
+			entrySize := uint32(unsafe.Sizeof(uint32(0)))
+			return addLEOffsetFields("DYSYMTAB", map[string]fieldLookup{
+				"TOC":           {"TOCOff", realCommand.TOCOff, "TOCSize", realCommand.NTOC * entrySize},
+				"Module Table":  {"ModTabOff", realCommand.ModTabOff, "ModTabSize", realCommand.NModTab * entrySize},
+				"External Refs": {"ExtRefOff", realCommand.ExtRefSymOff, "ExtRefSize", realCommand.NExtRefSyms * entrySize},
+				"Indirect Syms": {"IndirectSymOff", realCommand.IndirectSymOff, "IndirectSymSize", realCommand.NIndirectSyms * entrySize},
+				"External Rels": {"ExtRelOff", realCommand.ExtRelOff, "ExtRelSize", realCommand.NExtRel * entrySize},
+				"Local Rels":    {"LocRelOff", realCommand.LocRelOff, "LocRelSize", realCommand.NLocRel * entrySize},
+			}, nil)(frame, path, base, after, linkEdit)
 		}
 	case subcontracts.LC_LOAD_DYLIB:
 		fallthrough
