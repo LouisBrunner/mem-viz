@@ -80,3 +80,5 @@ func (me UnslidAddress) GetReader(cache Cache, offset, slide uint64) io.Reader {
 func (me UnslidAddress) Invalid() bool {
 	return me == 0
 }
+
+type LinkEditOffset uint32

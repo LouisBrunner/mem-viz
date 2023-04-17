@@ -165,6 +165,8 @@ func formatValue(name string, value interface{}) string {
 		return commons.FromCString(v[:])
 	case []uint16:
 		return fmt.Sprintf("[%d]uint16", len(v))
+	case fmt.Stringer:
+		return v.String()
 	}
 	jsond, err := json.Marshal(value)
 	if err == nil {

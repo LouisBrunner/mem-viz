@@ -551,7 +551,7 @@ type FVMLib struct {
 type FVMLibCommand struct {
 	Cmd     uint32 `struc:"little"` // LC_IDFVMLIB or LC_LOADFVMLIB
 	CmdSize uint32 `struc:"little"` // includes pathname string
-	FVMLib  FVMLib // the library identification
+	FVMLib         // the library identification
 }
 
 // Dynamicly linked shared libraries are identified by two things.  The
@@ -562,10 +562,10 @@ type FVMLibCommand struct {
 // built and copied into user so it can be use to determined if the library used
 // at runtime is exactly the same as used to built the program.
 type DYLIB struct {
-	Name                 uint32 `struc:"little"` // library's path name
-	Timestamp            uint32 `struc:"little"` // library's build time stamp
-	CurrentVersion       uint32 `struc:"little"` // library's current version number
-	CompatibilityVersion uint32 `struc:"little"` // library's compatibility vers number
+	Name                 RelativeAddress32 `struc:"little"` // library's path name
+	Timestamp            uint32            `struc:"little"` // library's build time stamp
+	CurrentVersion       uint32            `struc:"little"` // library's current version number
+	CompatibilityVersion uint32            `struc:"little"` // library's compatibility vers number
 }
 
 // A dynamically linked shared library (filetype == MH_DYLIB in the mach header)
@@ -576,7 +576,7 @@ type DYLIB struct {
 type DYLIBCommand struct {
 	Cmd     uint32 `struc:"little"` // LC_ID_DYLIB, LC_LOAD_{,WEAK_}DYLIB, LC_REEXPORT_DYLIB
 	CmdSize uint32 `struc:"little"` // includes pathname string
-	DYLIB   DYLIB  // the library identification
+	DYLIB          // the library identification
 }
 
 // A dynamically linked shared library may be a subframework of an umbrella
@@ -588,9 +588,9 @@ type DYLIBCommand struct {
 // The name of the umbrella framework for subframeworks is recorded in the
 // following structure.
 type SubFrameworkCommand struct {
-	Cmd      uint32 `struc:"little"` // LC_SUB_FRAMEWORK
-	CmdSize  uint32 `struc:"little"` // includes umbrella string
-	Umbrella uint32 `struc:"little"` // the umbrella framework name
+	Cmd      uint32            `struc:"little"` // LC_SUB_FRAMEWORK
+	CmdSize  uint32            `struc:"little"` // includes umbrella string
+	Umbrella RelativeAddress32 `struc:"little"` // the umbrella framework name
 }
 
 // For dynamically linked shared libraries that are subframework of an umbrella
@@ -601,9 +601,9 @@ type SubFrameworkCommand struct {
 // usually a framework name.  It can also be a name used for bundles clients
 // where the bundle is built with "-client_name client_name".
 type SubClientCommand struct {
-	Cmd     uint32 `struc:"little"` // LC_SUB_CLIENT
-	CmdSize uint32 `struc:"little"` // includes client string
-	Client  uint32 `struc:"little"` // the client name
+	Cmd     uint32            `struc:"little"` // LC_SUB_CLIENT
+	CmdSize uint32            `struc:"little"` // includes client string
+	Client  RelativeAddress32 `struc:"little"` // the client name
 }
 
 // A dynamically linked shared library may be a sub_umbrella of an umbrella
@@ -618,9 +618,9 @@ type SubClientCommand struct {
 // Zero or more sub_umbrella frameworks may be use by an umbrella framework.
 // The name of a sub_umbrella framework is recorded in the following structure.
 type SubUmbrellaCommand struct {
-	Cmd         uint32 `struc:"little"` // LC_SUB_UMBRELLA
-	CmdSize     uint32 `struc:"little"` // includes sub_umbrella string
-	SubUmbrella uint32 `struc:"little"` // the sub_umbrella framework name
+	Cmd         uint32            `struc:"little"` // LC_SUB_UMBRELLA
+	CmdSize     uint32            `struc:"little"` // includes sub_umbrella string
+	SubUmbrella RelativeAddress32 `struc:"little"` // the sub_umbrella framework name
 }
 
 // A dynamically linked shared library may be a sub_library of another shared
@@ -637,9 +637,9 @@ type SubUmbrellaCommand struct {
 // The name of a sub_library framework is recorded in the following structure.
 // For example /usr/lib/libobjc_profile.A.dylib would be recorded as "libobjc".
 type SubLibraryCommand struct {
-	Cmd        uint32 `struc:"little"` // LC_SUB_LIBRARY
-	CmdSize    uint32 `struc:"little"` // includes sub_library string
-	SubLibrary uint32 `struc:"little"` // the sub_library name
+	Cmd        uint32            `struc:"little"` // LC_SUB_LIBRARY
+	CmdSize    uint32            `struc:"little"` // includes sub_library string
+	SubLibrary RelativeAddress32 `struc:"little"` // the sub_library name
 }
 
 // A program (filetype == MH_EXECUTE) that is
@@ -664,9 +664,9 @@ type PreboundDylibCommand struct {
 // This struct is also used for the LC_DYLD_ENVIRONMENT load command and
 // contains string for dyld to treat like environment variable.
 type DylinkerCommand struct {
-	Cmd     uint32 `struc:"little"` // LC_ID_DYLINKER, LC_LOAD_DYLINKER or LC_DYLD_ENVIRONMENT
-	CmdSize uint32 `struc:"little"` // includes pathname string
-	Name    uint32 `struc:"little"` // dynamic linker's path name
+	Cmd     uint32            `struc:"little"` // LC_ID_DYLINKER, LC_LOAD_DYLINKER or LC_DYLD_ENVIRONMENT
+	CmdSize uint32            `struc:"little"` // includes pathname string
+	Name    RelativeAddress32 `struc:"little"` // dynamic linker's path name
 }
 
 // Thread commands contain machine-specific data structures suitable for
@@ -734,12 +734,12 @@ type RoutinesCommand64 struct { // for 64-bit architectures
 // "stab" style symbol table information as described in the header files
 // <nlist.h> and <stab.h>.
 type SymtabCommand struct {
-	Cmd     uint32 `struc:"little"` // LC_SYMTAB
-	CmdSize uint32 `struc:"little"` // sizeof(struct symtab_command)
-	SymOff  uint32 `struc:"little"` // symbol table offset
-	NSyms   uint32 `struc:"little"` // number of symbol table entries
-	StrOff  uint32 `struc:"little"` // string table offset
-	StrSize uint32 `struc:"little"` // string table size in bytes
+	Cmd     uint32         `struc:"little"` // LC_SYMTAB
+	CmdSize uint32         `struc:"little"` // sizeof(struct symtab_command)
+	SymOff  LinkEditOffset `struc:"little"` // symbol table offset
+	NSyms   uint32         `struc:"little"` // number of symbol table entries
+	StrOff  LinkEditOffset `struc:"little"` // string table offset
+	StrSize uint32         `struc:"little"` // string table size in bytes
 }
 
 // This is the second set of the symbolic information which is used to support
@@ -821,8 +821,8 @@ type DYSymTabCommand struct {
 	// library file.  For executable and object modules the defined external
 	// symbols are sorted by name and is use as the table of contents.
 
-	TOCOff uint32 `struc:"little"` // file offset to table of contents
-	NTOC   uint32 `struc:"little"` // number of entries in table of contents
+	TOCOff LinkEditOffset `struc:"little"` // file offset to table of contents
+	NTOC   uint32         `struc:"little"` // number of entries in table of contents
 
 	// To support dynamic binding of "modules" (whole object files) the symbol
 	// table must reflect the modules that the file was created from.  This is
@@ -832,8 +832,8 @@ type DYSymTabCommand struct {
 	// shared library file.  For executable and object modules the file only
 	// contains one module so everything in the file belongs to the module.
 
-	ModTabOff uint32 `struc:"little"` // file offset to module table
-	NModTab   uint32 `struc:"little"` // number of module table entries
+	ModTabOff LinkEditOffset `struc:"little"` // file offset to module table
+	NModTab   uint32         `struc:"little"` // number of module table entries
 
 	// To support dynamic module binding the module structure for each module
 	// indicates the external references (defined and undefined) each module
@@ -843,8 +843,8 @@ type DYSymTabCommand struct {
 	// executable and object modules the defined external symbols and the
 	// undefined external symbols indicates the external references.
 
-	ExtRefSymOff uint32 `struc:"little"` // offset to referenced symbol table
-	NExtRefSyms  uint32 `struc:"little"` // number of referenced symbol table entries
+	ExtRefSymOff LinkEditOffset `struc:"little"` // offset to referenced symbol table
+	NExtRefSyms  uint32         `struc:"little"` // number of referenced symbol table entries
 
 	// The sections that contain "symbol pointers" and "routine stubs" have
 	// indexes and (implied counts based on the size of the section and fixed
@@ -855,8 +855,8 @@ type DYSymTabCommand struct {
 	// the symbol table to the symbol that the pointer or stub is referring to.
 	// The indirect symbol table is ordered to match the entries in the section.
 
-	IndirectSymOff uint32 `struc:"little"` // file offset to the indirect symbol table
-	NIndirectSyms  uint32 `struc:"little"` // number of indirect symbol table entries
+	IndirectSymOff LinkEditOffset `struc:"little"` // file offset to the indirect symbol table
+	NIndirectSyms  uint32         `struc:"little"` // number of indirect symbol table entries
 
 	// To support relocating an individual module in a library file quickly the
 	// external relocation entries for each module in the library need to be
@@ -884,15 +884,15 @@ type DYSymTabCommand struct {
 	// remaining external relocation entries for them (for merged sections
 	// remaining relocation entries must be local).
 
-	ExtRelOff uint32 `struc:"little"` // offset to external relocation entries
-	NExtRel   uint32 `struc:"little"` // number of external relocation entries
+	ExtRelOff LinkEditOffset `struc:"little"` // offset to external relocation entries
+	NExtRel   uint32         `struc:"little"` // number of external relocation entries
 
 	// All the local relocation entries are grouped together (they are not
 	// grouped by their module since they are only used if the object is moved
 	// from it staticly link edited address).
 
-	LocRelOff uint32 `struc:"little"` // offset to local relocation entries
-	NLocRel   uint32 `struc:"little"` // number of local relocation entries
+	LocRelOff LinkEditOffset `struc:"little"` // offset to local relocation entries
+	NLocRel   uint32         `struc:"little"` // number of local relocation entries
 }
 
 // An indirect symbol table entry is simply a 32bit index into the symbol table
@@ -1043,9 +1043,9 @@ type UUIDCommand struct {
 // The rpath_command contains a path which at runtime should be added to
 // the current run path used to find @rpath prefixed dylibs.
 type RPathCommand struct {
-	Cmd     uint32 `struc:"little"` // LC_RPATH
-	CmdSize uint32 `struc:"little"` // includes string
-	Path    uint32 `struc:"little"` // path to add to run path
+	Cmd     uint32            `struc:"little"` // LC_RPATH
+	CmdSize uint32            `struc:"little"` // includes string
+	Path    RelativeAddress32 `struc:"little"` // path to add to run path
 }
 
 // The linkedit_data_command contains the offsets and sizes of a blob
