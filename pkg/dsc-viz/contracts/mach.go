@@ -701,7 +701,7 @@ type ThreadCommandARM64 struct {
 	SP   uint64     `struc:"little"`
 	PC   uint64     `struc:"little"`
 	CPSR uint32     `struc:"little"`
-	PAD  uint64     `struc:"little"`
+	PAD  uint32     `struc:"little"`
 }
 
 type ThreadCommandX8664 struct {

@@ -57,7 +57,6 @@ func (me *parser) parse(fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, e
 	if err != nil {
 		return nil, err
 	}
-	me.clearNonGlobalCategories()
 
 	anchors := map[*contracts.MemoryBlock]struct{}{
 		mainBlock: {},
@@ -66,6 +65,8 @@ func (me *parser) parse(fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, e
 	subCacheEntriesFn := make([]func(*contracts.MemoryBlock) error, 0, len(fetcher.SubCaches()))
 	subCacheSize := uint64(0)
 	for i, cache := range fetcher.SubCaches() {
+		me.clearNonGlobalCategories()
+
 		v2, v1 := cache.SubCacheHeader()
 		name := fmt.Sprintf("%d", i+1)
 		if v2 != nil {
@@ -89,8 +90,6 @@ func (me *parser) parse(fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, e
 				return me.addSubCacheEntry(subCacheEntries, headerBlock, subHeaderBlock, fetcher.Header(), v2, v1, uint64(i))
 			}
 		}(uint64(i)))
-
-		me.clearNonGlobalCategories()
 	}
 
 	if len(subCacheEntriesFn) > 0 {
