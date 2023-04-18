@@ -2,7 +2,6 @@ package parse
 
 import (
 	"fmt"
-	"strings"
 	"unsafe"
 
 	"github.com/LouisBrunner/mem-viz/pkg/commons"
@@ -19,10 +18,11 @@ type parser struct {
 	logger                *logrus.Logger
 	slide                 uint64
 	addSizeLink           bool
+	deepSearch            bool
 	thresholdsArrayTooBig uint64
 	uniqueBlocks          map[category][]*contracts.MemoryBlock
-	// FIXME: used only for emergencies, should never be used really
-	parents map[*contracts.MemoryBlock]*contracts.MemoryBlock
+	allBlocks             map[uintptr]*[]*contracts.MemoryBlock
+	root                  *contracts.MemoryBlock
 }
 
 func Parse(logger *logrus.Logger, fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, error) {
@@ -38,9 +38,10 @@ func Parse(logger *logrus.Logger, fetcher subcontracts.Fetcher) (*contracts.Memo
 		slide:  slide,
 		// TODO: should be dsc-viz flags
 		addSizeLink:           false,
+		deepSearch:            false,
 		thresholdsArrayTooBig: 3000,
 		uniqueBlocks:          make(map[category][]*contracts.MemoryBlock),
-		parents:               make(map[*contracts.MemoryBlock]*contracts.MemoryBlock),
+		allBlocks:             make(map[uintptr]*[]*contracts.MemoryBlock),
 	}
 	return parser.parse(fetcher)
 }
@@ -51,7 +52,9 @@ func (me *parser) parse(fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, e
 		Address:      fetcher.BaseAddress(),
 		ParentOffset: uint64(fetcher.BaseAddress()),
 	}
+	me.root = root
 
+	me.logger.Debugf("Parsing main header")
 	mainHeader := fetcher.Header()
 	mainBlock, headerBlock, err := me.addCache(root, fetcher, "Main Header", subcontracts.ManualAddress(0))
 	if err != nil {
@@ -65,6 +68,8 @@ func (me *parser) parse(fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, e
 	subCacheEntriesFn := make([]func(*contracts.MemoryBlock) error, 0, len(fetcher.SubCaches()))
 	subCacheSize := uint64(0)
 	for i, cache := range fetcher.SubCaches() {
+		me.logger.Debugf("Parsing subcache %d\n", i)
+
 		me.clearNonGlobalCategories()
 
 		v2, v1 := cache.SubCacheHeader()
@@ -106,80 +111,17 @@ func (me *parser) parse(fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, e
 		}
 	}
 
-	rebalance(root, anchors)
+	me.logger.Debugf("Rebalancing\n")
+	me.flushCategories()
+	me.rebalance(root, anchors)
+
+	me.logger.Debugf("Parsing finished\n")
 
 	return root, nil
 }
 
-// FIXME: very wasteful but always gives the right result
-func rebalance(root *contracts.MemoryBlock, anchors map[*contracts.MemoryBlock]struct{}) {
-	isAnchor := func(block *contracts.MemoryBlock) bool {
-		_, ok := anchors[block]
-		return ok
-	}
-
-	b2i := func(b bool) int {
-		if b {
-			return 1
-		}
-		return 0
-	}
-
-	lessThan := func(a, b *contracts.MemoryBlock) bool {
-		criteria := []int{
-			b2i(a.Size == 0) - b2i(b.Size == 0),
-			-int(a.Size - b.Size),
-			len(a.Values) - len(b.Values),
-			strings.Compare(a.Name, b.Name),
-		}
-		for _, c := range criteria {
-			if c == 0 {
-				continue
-			} else if c < 0 {
-				return true
-			} else {
-				return false
-			}
-		}
-		return false
-	}
-
-	allBlocks := map[uintptr]*[]*contracts.MemoryBlock{}
-
-	commons.VisitEachBlockAdvanced(root, commons.VisitorSetup{
-		AfterChildren: func(ctx commons.VisitContext, block *contracts.MemoryBlock) error {
-			if block == root || isAnchor(block) {
-				if block != root {
-					block.Content = []*contracts.MemoryBlock{}
-				}
-				return nil
-			}
-
-			sameAddress, found := allBlocks[block.Address]
-			if !found {
-				sameAddress = &[]*contracts.MemoryBlock{}
-				allBlocks[block.Address] = sameAddress
-			}
-
-			added := false
-			for i, curr := range *sameAddress {
-				if lessThan(block, curr) {
-					*sameAddress = slices.Insert(*sameAddress, i, block)
-					added = true
-					break
-				}
-			}
-			if !added {
-				*sameAddress = append(*sameAddress, block)
-			}
-
-			block.Content = []*contracts.MemoryBlock{}
-
-			return nil
-		},
-	})
-
-	addresses := maps.Keys(allBlocks)
+func (me *parser) rebalance(root *contracts.MemoryBlock, anchors map[*contracts.MemoryBlock]struct{}) {
+	addresses := maps.Keys(me.allBlocks)
 	slices.Sort(addresses)
 
 	if len(root.Content) < 1 {
@@ -198,7 +140,7 @@ func rebalance(root *contracts.MemoryBlock, anchors map[*contracts.MemoryBlock]s
 		baseAnchor = anchor
 
 		parent := root.Content[anchor]
-		sameAddress := allBlocks[address]
+		sameAddress := me.allBlocks[address]
 		for _, block := range *sameAddress {
 			newParent := addChildDeep(parent, block)
 			block.ParentOffset = uint64(block.Address - newParent.Address)

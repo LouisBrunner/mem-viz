@@ -216,10 +216,7 @@ func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cac
 	}
 	if dcddHeaderBlock != nil && string(dcdd.Magic[:]) != subcontracts.DYLD_SHARED_CACHE_DYNAMIC_DATA_MAGIC {
 		// FIXME: never found a way to make it work 🤷‍♀️
-		err = findAndRemoveChild(frame.parent, dcddBlock)
-		if err != nil {
-			return nil, nil, err
-		}
+		me.removeChild(dcddBlock)
 	}
 	return block, headerBlock, nil
 }

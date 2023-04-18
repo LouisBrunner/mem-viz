@@ -774,6 +774,22 @@ type SymtabCommand struct {
 	StrSize uint32         `struc:"little"` // string table size in bytes
 }
 
+type NList struct {
+	NStrx  uint32 `struct:"little"`
+	NType  uint8  `struct:"little"`
+	NSect  uint8  `struct:"little"`
+	NDesc  int16  `struct:"little"`
+	NValue uint32 `struct:"little"`
+}
+
+type NList64 struct {
+	NStrx  uint32 `struct:"little"`
+	NType  uint8  `struct:"little"`
+	NSect  uint8  `struct:"little"`
+	NDesc  uint16 `struct:"little"`
+	NValue uint64 `struct:"little"`
+}
+
 // This is the second set of the symbolic information which is used to support
 // the data structures for the dynamically link editor.
 //

@@ -1,34 +1,11 @@
 package parse
 
 import (
-	"encoding/json"
-	"fmt"
 	"io"
-	"reflect"
+	"strings"
 
-	"github.com/LouisBrunner/mem-viz/pkg/commons"
 	"github.com/LouisBrunner/mem-viz/pkg/contracts"
-	subcontracts "github.com/LouisBrunner/mem-viz/pkg/dsc-viz/contracts"
-	"golang.org/x/exp/slices"
 )
-
-// FIXME: disgusting reflection but no other way unless Go supports generics on function receivers
-
-func getDataValue(v interface{}) reflect.Value {
-	dat := reflect.ValueOf(v)
-	for dat.Kind() == reflect.Ptr {
-		dat = dat.Elem()
-	}
-	return dat
-}
-
-func copyDataValue(v interface{}) interface{} {
-	dat := reflect.ValueOf(v)
-	for dat.Kind() == reflect.Ptr {
-		dat = dat.Elem()
-	}
-	return dat.Interface()
-}
 
 func readCString(r io.Reader) string {
 	var b []byte
@@ -43,148 +20,6 @@ func readCString(r io.Reader) string {
 	return string(b)
 }
 
-func addChildDeep(parent, child *contracts.MemoryBlock) *contracts.MemoryBlock {
-	for i, curr := range parent.Content {
-		if isInsideOf(child, curr) {
-			return addChildDeep(curr, child)
-		} else if curr.Address > child.Address {
-			parent.Content = slices.Insert(parent.Content, i, child)
-			return parent
-		}
-	}
-	parent.Content = append(parent.Content, child)
-	return parent
-}
-
-func addChild(parent, child *contracts.MemoryBlock) {
-	for i, curr := range parent.Content {
-		if curr.Address > child.Address {
-			parent.Content = slices.Insert(parent.Content, i, child)
-			return
-		}
-	}
-	parent.Content = append(parent.Content, child)
-}
-
-func findAndRemoveChild(parent, child *contracts.MemoryBlock) error {
-	for i, curr := range parent.Content {
-		if curr == child {
-			removeChild(parent, i)
-			return nil
-		}
-	}
-	return fmt.Errorf("could not find child %+v in parent %+v", child, parent)
-}
-
-func removeChild(parent *contracts.MemoryBlock, childIndex int) *contracts.MemoryBlock {
-	child := parent.Content[childIndex]
-	parent.Content = slices.Delete(parent.Content, childIndex, childIndex+1)
-	return child
-}
-
-func addLinkCommon(parent *contracts.MemoryBlock, parentValueName, linkName string, addr uintptr) error {
-	if parentValueName == "" {
-		return nil
-	}
-
-	for i := range parent.Values {
-		if parent.Values[i].Name != parentValueName {
-			continue
-		}
-
-		parent.Values[i].Links = append(parent.Values[i].Links, &contracts.MemoryLink{
-			Name:          linkName,
-			TargetAddress: uint64(addr),
-		})
-		return nil
-	}
-
-	return fmt.Errorf("could not find value %q in parent %+v", parentValueName, parent)
-}
-
-func addLink(parent *contracts.MemoryBlock, parentValueName string, child *contracts.MemoryBlock, linkName string) error {
-	return addLinkCommon(parent, parentValueName, linkName, child.Address)
-}
-
-func (me *parser) addLinkWithOffset(frame *blockFrame, parentValueName string, offset subcontracts.Address, linkName string) error {
-	if offset.Invalid() {
-		return nil
-	}
-
-	return addLinkCommon(frame.parentStruct, parentValueName, linkName, offset.AddBase(frame.parent.Address).Calculate(me.slide))
-}
-
-func addValue(block *contracts.MemoryBlock, name string, value interface{}, offset uint64, size uint8) {
-	block.Values = append(block.Values, &contracts.MemoryValue{
-		Name:   name,
-		Value:  formatValue(name, value),
-		Offset: offset,
-		Size:   size,
-	})
-}
-
-func formatValue(name string, value interface{}) string {
-	formatInteger := func() string {
-		// FIXME: would be nice to have more specialized formats, e.g. for OSVersion or CacheType
-		return fmt.Sprintf("%#x", value)
-	}
-
-	switch v := value.(type) {
-	case subcontracts.UnslidAddress:
-		return formatInteger()
-	case subcontracts.UnslidAddress32:
-		return formatInteger()
-	case subcontracts.RelativeAddress32:
-		return formatInteger()
-	case subcontracts.RelativeAddress64:
-		return formatInteger()
-	case subcontracts.LinkEditOffset:
-		return formatInteger()
-	case subcontracts.ManualAddress:
-		return formatInteger()
-	case uint:
-		return formatInteger()
-	case uint8:
-		return formatInteger()
-	case uint16:
-		return formatInteger()
-	case uint32:
-		return formatInteger()
-	case uint64:
-		return formatInteger()
-	case int:
-		return formatInteger()
-	case int8:
-		return formatInteger()
-	case int16:
-		return formatInteger()
-	case int32:
-		return formatInteger()
-	case int64:
-		return formatInteger()
-	case [16]byte:
-		// FIXME: no way to distinguish between []byte and []uint8
-		if name == "UUID" {
-			return fmt.Sprintf(
-				"%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
-				v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15],
-			)
-		}
-		return commons.FromCString(v[:])
-	case [32]byte:
-		return commons.FromCString(v[:])
-	case []uint16:
-		return fmt.Sprintf("[%d]uint16", len(v))
-	case fmt.Stringer:
-		return v.String()
-	}
-	jsond, err := json.Marshal(value)
-	if err == nil {
-		return string(jsond)
-	}
-	return fmt.Sprintf("%v", value)
-}
-
 func isInsideOf(child, parent *contracts.MemoryBlock) bool {
 	return parent.Address <= child.Address && child.Address+uintptr(child.GetSize()) <= parent.Address+uintptr(parent.GetSize())
 }
@@ -193,11 +28,28 @@ func roundUp(x, y uint64) uint64 {
 	return (x + y - 1) / y * y
 }
 
-func findValue(block *contracts.MemoryBlock, name string) *contracts.MemoryValue {
-	for _, v := range block.Values {
-		if v.Name == name {
-			return v
+func b2i(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+func lessThan(a, b *contracts.MemoryBlock) bool {
+	criteria := []int{
+		b2i(a.Size == 0) - b2i(b.Size == 0),
+		-int(a.Size - b.Size),
+		len(a.Values) - len(b.Values),
+		strings.Compare(a.Name, b.Name),
+	}
+	for _, c := range criteria {
+		if c == 0 {
+			continue
+		} else if c < 0 {
+			return true
+		} else {
+			return false
 		}
 	}
-	return nil
+	return false
 }
