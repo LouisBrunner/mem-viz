@@ -2,12 +2,13 @@ package parse
 
 import (
 	"github.com/LouisBrunner/mem-viz/pkg/contracts"
+	"github.com/LouisBrunner/mem-viz/pkg/parsingutils"
 	"golang.org/x/exp/slices"
 )
 
 func addChildDeep(parent, child *contracts.MemoryBlock) *contracts.MemoryBlock {
 	for i, curr := range parent.Content {
-		if isInsideOf(child, curr) {
+		if parsingutils.IsInsideOf(child, curr) {
 			return addChildDeep(curr, child)
 		} else if curr.Address > child.Address {
 			parent.Content = slices.Insert(parent.Content, i, child)
@@ -31,7 +32,7 @@ func (me *parser) addChildFast(block *contracts.MemoryBlock) {
 
 	added := false
 	for i, curr := range *sameAddress {
-		if lessThan(block, curr) {
+		if parsingutils.LessThan(block, curr) {
 			*sameAddress = slices.Insert(*sameAddress, i, block)
 			added = true
 			break

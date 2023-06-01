@@ -5,6 +5,7 @@ import (
 
 	"github.com/LouisBrunner/mem-viz/pkg/contracts"
 	subcontracts "github.com/LouisBrunner/mem-viz/pkg/dsc-viz/contracts"
+	"github.com/LouisBrunner/mem-viz/pkg/parsingutils"
 )
 
 func (me *parser) parseImagesCommon(frame *blockFrame, imgs []arrayElement, apply func(frame *blockFrame, img arrayElement) error) error {
@@ -65,7 +66,7 @@ func (me *parser) addImage(frame *blockFrame, image *contracts.MemoryBlock, addr
 func (me *parser) addImageTEXT(frame *blockFrame, image *contracts.MemoryBlock, path, addressName string, address subcontracts.Address, sizeName string, size uint64) error {
 	absAddr := address.AddBase(frame.parent.Address).Calculate(me.slide)
 	currBlock, err := me.findOrCreateUniqueBlock(categoryImages, func(i int, block *contracts.MemoryBlock) bool {
-		return isInsideOf(&contracts.MemoryBlock{Address: absAddr}, &contracts.MemoryBlock{Address: block.Address, Size: roundUp(block.GetSize(), page)})
+		return parsingutils.IsInsideOf(&contracts.MemoryBlock{Address: absAddr}, &contracts.MemoryBlock{Address: block.Address, Size: roundUp(block.GetSize(), page)})
 	}, func() (*contracts.MemoryBlock, error) {
 		return me.createEmptyBlock(frame.parent, "Images TEXT", address)
 	})
@@ -112,7 +113,7 @@ func (me *parser) addImageTEXT(frame *blockFrame, image *contracts.MemoryBlock, 
 func (me *parser) addImagePath(frame *blockFrame, image *contracts.MemoryBlock, path, pathOffsetName string, pathOffset subcontracts.Address) error {
 	absAddr := pathOffset.AddBase(frame.parent.Address).Calculate(me.slide)
 	pathBlock, err := me.findOrCreateUniqueBlock(categoryPaths, func(i int, pathBlock *contracts.MemoryBlock) bool {
-		return isInsideOf(&contracts.MemoryBlock{Address: absAddr}, pathBlock)
+		return parsingutils.IsInsideOf(&contracts.MemoryBlock{Address: absAddr}, pathBlock)
 	}, func() (*contracts.MemoryBlock, error) {
 		return me.createEmptyBlock(frame.parent, "Paths", pathOffset)
 	})

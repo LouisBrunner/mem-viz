@@ -16,7 +16,7 @@ func (me *outputter) Text(m contracts.MemoryBlock) error {
 	// TODO: make this configurable on (mem|dsc)-viz
 	const thresholdsArrayTooBig = 10000
 	const showLinks = true
-	const showHiddenLinks = false
+	const showHiddenLinks = true
 	const showProperties = true
 	const showUnused = true
 
@@ -91,6 +91,7 @@ func (me *outputter) Text(m contracts.MemoryBlock) error {
 			if showLinks && showHiddenLinks {
 				addr := linksOrder[linksIndex]
 
+				// FIXME: depth is inaccurate
 				flushUnused(lastUnused, addr, depth)
 
 				origins := links[linksOrder[linksIndex]]
