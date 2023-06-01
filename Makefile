@@ -20,16 +20,24 @@ build: mem-viz dsc-viz
 
 mem-viz:
 	go build ./cmd/mem-viz
-.PHONY: dsc-viz
+.PHONY: mem-viz
 
 dsc-viz:
 	go build ./cmd/dsc-viz
 .PHONY: dsc-viz
 
+macho-viz:
+	go build ./cmd/macho-viz
+.PHONY: macho-viz
+
 debug-mem:
 	DEBUG=y go run -- ./cmd/mem-viz $(ARGS)
-.PHONY: debug
+.PHONY: debug-mem
 
 debug-dsc:
 	DEBUG=y go run -- ./cmd/dsc-viz $(ARGS)
-.PHONY: debug
+.PHONY: debug-dsc
+
+debug-macho:
+	DEBUG=y go run -- ./cmd/macho-viz $(ARGS)
+.PHONY: debug-macho

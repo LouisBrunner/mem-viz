@@ -6,6 +6,7 @@ import (
 
 	"github.com/LouisBrunner/mem-viz/pkg/contracts"
 	subcontracts "github.com/LouisBrunner/mem-viz/pkg/dsc-viz/contracts"
+	"github.com/LouisBrunner/mem-viz/pkg/parsingutils"
 )
 
 func (me *parser) createCommonBlock(parent *contracts.MemoryBlock, label string, offset subcontracts.Address, size uint64) (*contracts.MemoryBlock, error) {
@@ -25,7 +26,7 @@ func (me *parser) createCommonBlock(parent *contracts.MemoryBlock, label string,
 }
 
 func (me *parser) createStructBlock(parent *contracts.MemoryBlock, data any, label string, offset subcontracts.Address) (*contracts.MemoryBlock, error) {
-	val := getDataValue(data)
+	val := parsingutils.GetDataValue(data)
 	typ := val.Type()
 
 	block, err := me.createCommonBlock(parent, label, offset, uint64(typ.Size()))
@@ -58,12 +59,12 @@ func (me *parser) createBlobBlock(frame *blockFrame, fieldName string, offset su
 	if err != nil {
 		return nil, err
 	}
-	err = addLink(frame.parentStruct, fieldName, block, "points to")
+	err = parsingutils.AddLinkWithBlock(frame.parentStruct, fieldName, block, "points to")
 	if err != nil {
 		return nil, err
 	}
 	if me.addSizeLink {
-		err = addLink(frame.parentStruct, fieldSizeName, block, "gives size")
+		err = parsingutils.AddLinkWithBlock(frame.parentStruct, fieldSizeName, block, "gives size")
 		if err != nil {
 			return nil, err
 		}
@@ -80,7 +81,7 @@ func (me *parser) createArrayBlock(frame *blockFrame, fieldName string, offset s
 		return nil, nil, 0, nil
 	}
 
-	val := getDataValue(data)
+	val := parsingutils.GetDataValue(data)
 	size := uint64(val.Type().Size())
 
 	offsetFromDefiner := offset.AddBase(uintptr(frame.offsetFromStart + frame.parentStruct.ParentOffset))
@@ -88,12 +89,12 @@ func (me *parser) createArrayBlock(frame *blockFrame, fieldName string, offset s
 	if err != nil {
 		return nil, nil, 0, err
 	}
-	err = addLink(frame.parentStruct, fieldName, arrayBlock, "points to")
+	err = parsingutils.AddLinkWithBlock(frame.parentStruct, fieldName, arrayBlock, "points to")
 	if err != nil {
 		return nil, nil, 0, err
 	}
 	if me.addSizeLink {
-		err = addLink(frame.parentStruct, countFieldName, arrayBlock, "gives size")
+		err = parsingutils.AddLinkWithBlock(frame.parentStruct, countFieldName, arrayBlock, "gives size")
 		if err != nil {
 			return nil, nil, 0, err
 		}

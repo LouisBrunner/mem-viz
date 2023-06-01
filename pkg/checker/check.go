@@ -12,8 +12,8 @@ func blockDetails(block *contracts.MemoryBlock) string {
 	return fmt.Sprintf("%q (%#016x-%#016x)", block.Name, block.Address, block.Address+uintptr(block.GetSize()))
 }
 
-func valueDetails(value *contracts.MemoryValue) string {
-	return fmt.Sprintf("%q (%#04x-%#04x)", value.Name, value.Offset, value.Offset+uint64(value.Size))
+func valueDetails(offset uint64, value *contracts.MemoryValue) string {
+	return fmt.Sprintf("%q (%#04x-%#04x)", value.Name, offset+value.Offset, offset+value.Offset+uint64(value.Size))
 }
 
 func Check(logger *logrus.Logger, mb *contracts.MemoryBlock) error {
@@ -43,10 +43,10 @@ func Check(logger *logrus.Logger, mb *contracts.MemoryBlock) error {
 		previousOffset := uint64(0)
 		for i, value := range block.Values {
 			if value.Offset < previousOffset {
-				return fmt.Errorf("values of %v are not sorted: %v should be after %v", blockDetails(block), valueDetails(value), valueDetails(block.Values[i-1]))
+				return fmt.Errorf("values of %v are not sorted: %v should be after %v", blockDetails(block), valueDetails(uint64(block.Address), value), valueDetails(uint64(block.Address), block.Values[i-1]))
 			}
 			if uintptr(value.Offset)+uintptr(value.Size) > size {
-				return fmt.Errorf("value %v is out of bounds of its parent %v", valueDetails(value), blockDetails(block))
+				return fmt.Errorf("value %v is out of bounds of its parent %v", valueDetails(uint64(block.Address), value), blockDetails(block))
 			}
 		}
 

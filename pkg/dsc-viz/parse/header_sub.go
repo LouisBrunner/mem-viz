@@ -6,6 +6,7 @@ import (
 
 	"github.com/LouisBrunner/mem-viz/pkg/contracts"
 	subcontracts "github.com/LouisBrunner/mem-viz/pkg/dsc-viz/contracts"
+	"github.com/LouisBrunner/mem-viz/pkg/parsingutils"
 )
 
 func (me *parser) addSubCacheEntry(parent, headerBlock, subCache *contracts.MemoryBlock, header subcontracts.DYLDCacheHeaderV3, v2 *subcontracts.DYLDSubcacheEntryV2, v1 *subcontracts.DYLDSubcacheEntryV1, index uint64) error {
@@ -23,16 +24,16 @@ func (me *parser) addSubCacheEntry(parent, headerBlock, subCache *contracts.Memo
 		return err
 	}
 	if index == 0 {
-		err := addLink(headerBlock, "SubCacheArrayOffset", block, "points to")
+		err := parsingutils.AddLinkWithBlock(headerBlock, "SubCacheArrayOffset", block, "points to")
 		if err != nil {
 			return err
 		}
 		if me.addSizeLink {
-			err = addLink(headerBlock, "SubCacheArrayCount", block, "gives size")
+			err = parsingutils.AddLinkWithBlock(headerBlock, "SubCacheArrayCount", block, "gives size")
 			if err != nil {
 				return err
 			}
 		}
 	}
-	return addLink(block, "CacheVmOffset", subCache, "points to")
+	return parsingutils.AddLinkWithBlock(block, "CacheVmOffset", subCache, "points to")
 }

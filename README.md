@@ -161,6 +161,33 @@ You can use `--from-memory` or `--from-current-arch` to let the tool fetch the D
 
 Other options are the same as `mem-viz` (same output formats supported, possibility to save/load JSON, etc).
 
+### `macho-viz`
+
+This tool allows to display the format of a macOS/iOS Mach-O file.
+
+Install it using:
+
+```sh
+go install github.com/LouisBrunner/mem-viz/cmd/macho-viz@latest
+```
+
+Usage:
+
+```
+Usage of dsc-viz:
+      --file string                      file to load
+      --from-json ./blocks.json          use the JSON output from a previous run, e.g. ./blocks.json or `-` for stdin
+      --from-json-text {"Name": "foo"}   use the JSON output from a previous run, e.g. {"Name": "foo"}
+  -h, --help                             show this help message and exit
+      --logging-level string             logrus log level for internal debugging, e.g. "debug" (default "error")
+      --output string                    output format, one of: "graphviz", "latex", "markdown", "text", "ascii", "json" (default "text")
+  -o, --output-file ./blocks.dot         output file, e.g. ./blocks.dot, defaults to stdout
+```
+
+You can use `--file` to specify a file to read from disk.
+
+Other options are the same as `mem-viz` (same output formats supported, possibility to save/load JSON, etc).
+
 ## Output formats
 
 A wide-range of output formats is supported.

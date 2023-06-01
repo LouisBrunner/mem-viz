@@ -3,6 +3,7 @@ module github.com/LouisBrunner/mem-viz
 go 1.19
 
 require (
+	github.com/blacktop/go-macho v1.1.155
 	github.com/dustin/go-humanize v1.0.1
 	github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40
 	github.com/sirupsen/logrus v1.9.0
@@ -15,6 +16,7 @@ require (
 
 require (
 	github.com/BurntSushi/toml v1.2.1 // indirect
+	github.com/blacktop/go-dwarf v1.0.9 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect

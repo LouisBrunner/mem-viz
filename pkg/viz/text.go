@@ -2,7 +2,6 @@ package viz
 
 import (
 	"fmt"
-	"math"
 	"strings"
 	"unicode"
 
@@ -155,7 +154,7 @@ func (me *outputter) Text(m contracts.MemoryBlock) error {
 		return err
 	}
 
-	flushEach(math.MaxUint64, 0, 0)
+	flushEach(m.Address+uintptr(m.Size), lastAddress, 0)
 
 	return builder.Close()
 }

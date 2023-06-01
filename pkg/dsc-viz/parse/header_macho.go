@@ -7,6 +7,7 @@ import (
 	"github.com/LouisBrunner/mem-viz/pkg/commons"
 	"github.com/LouisBrunner/mem-viz/pkg/contracts"
 	subcontracts "github.com/LouisBrunner/mem-viz/pkg/dsc-viz/contracts"
+	"github.com/LouisBrunner/mem-viz/pkg/parsingutils"
 )
 
 type linkEditData struct {
@@ -42,7 +43,7 @@ func (me *parser) parseMachO(frame *blockFrame, parent *contracts.MemoryBlock, p
 
 		label := fmt.Sprintf("Load Command %d (%s)", i+1, subcontracts.LC2String(baseCommand.Cmd))
 		parent := commandsBlock
-		if uintptr(baseCommand.CmdSize) != getDataValue(loadStruct).Type().Size() {
+		if uintptr(baseCommand.CmdSize) != parsingutils.GetDataValue(loadStruct).Type().Size() {
 			metaBlock, err := me.createCommonBlock(parent, label, address, uint64(baseCommand.CmdSize))
 			if err != nil {
 				return err
@@ -206,7 +207,7 @@ func (me *parser) getMachOLoadCommandParser(frame *blockFrame, baseCommand subco
 						if me.deepSearch {
 							block, _, err = me.parseAndAddArray(frame, field.labelOffset, offset, field.labelSize, uint64(field.size), field.data, fmt.Sprintf("%s > %s > %s", path, label, label))
 						} else {
-							structSize := uint64(getDataValue(field.data).Type().Size())
+							structSize := uint64(parsingutils.GetDataValue(field.data).Type().Size())
 							block, err = me.createBlobBlock(frame, field.labelOffset, offset, field.labelSize, uint64(field.size)*structSize, fmt.Sprintf("%s > %s > %s", path, label, label))
 						}
 					} else {
