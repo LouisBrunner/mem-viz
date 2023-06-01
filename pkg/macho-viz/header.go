@@ -26,7 +26,9 @@ func (me *parser) addHeader(root *contracts.MemoryBlock, m *macho.File) error {
 	}
 
 	offset := uint64(0)
-	data := contextData{}
+	data := contextData{
+		header: m,
+	}
 	for i, cmd := range m.Loads {
 		block, err := me.addCommand(root, commands, i, cmd, offset, &data)
 		if err != nil {

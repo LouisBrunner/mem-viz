@@ -2,6 +2,7 @@ package macho
 
 import (
 	"fmt"
+	"unsafe"
 
 	"github.com/LouisBrunner/mem-viz/pkg/contracts"
 	"github.com/LouisBrunner/mem-viz/pkg/parsingutils"
@@ -10,30 +11,80 @@ import (
 )
 
 type contextData struct {
+	header   *macho.File
 	text     *contracts.MemoryBlock
 	linkEdit *contracts.MemoryBlock
 }
+
+type parseFn func(block, header *contracts.MemoryBlock) error
 
 func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd macho.Load, offset uint64, context *contextData) (*contracts.MemoryBlock, error) {
 	var data interface{}
 	banned := []string{
 		"LoadBytes",
 	}
-	var postParsing func(command *contracts.MemoryBlock) error
+	var postParsing parseFn
+	size := uint64(len(cmd.Raw()))
+	headerSize := size
 
 	// FIXME: untestable
-	handleObsolete := func(command *contracts.MemoryBlock) error {
-		return fmt.Errorf("obsolete load command (%s), unsupported", command.Name)
+	handleObsolete := func(block, header *contracts.MemoryBlock) error {
+		return fmt.Errorf("obsolete load command (%s), unsupported", block.Name)
 	}
 
 	// FIXME: untestable AND difficult to find
-	handlePrivate := func(command *contracts.MemoryBlock) error {
-		return fmt.Errorf("private load command (%s), unsupported", command.Name)
+	handlePrivate := func(block, header *contracts.MemoryBlock) error {
+		return fmt.Errorf("private load command (%s), unsupported", block.Name)
 	}
 
 	// FIXME: unused
-	handleUnused := func(command *contracts.MemoryBlock) error {
-		return fmt.Errorf("unusued load command (%s), currently unsupported", command.Name)
+	handleUnused := func(block, header *contracts.MemoryBlock) error {
+		return fmt.Errorf("unusued load command (%s), currently unsupported", block.Name)
+	}
+
+	handleSegment := func(real *macho.Segment, headerSize uint64) parseFn {
+		return func(block, header *contracts.MemoryBlock) error {
+			switch real.Name {
+			case "__TEXT":
+				context.text = block
+			case "__LINKEDIT":
+				context.linkEdit = block
+			}
+			if real.Offset == 0 && real.Filesz == 0 {
+				return nil
+			}
+			segment := me.addChild(root, &contracts.MemoryBlock{
+				Name:         fmt.Sprintf("Segment (%s)", real.Name),
+				Address:      uintptr(real.Offset),
+				Size:         uint64(real.Filesz),
+				ParentOffset: real.Offset - uint64(root.Address),
+			})
+			i := uint64(0)
+			// FIXME: SectionHeader has the wrong size (8 bytes too much in 64bit)
+			sizeOfSection := uint64(unsafe.Sizeof(types.SectionHeader{}) - 8)
+			for _, sect := range context.header.Sections {
+				if sect.Seg != real.Name {
+					continue
+				}
+				// FIXME: sorta breaks the viz but I want to keep them...
+				// if sect.Size == 0 {
+				// 	continue
+				// }
+				sectData := me.addChild(segment, &contracts.MemoryBlock{
+					Name:         fmt.Sprintf("Section (%s)", sect.Name),
+					Address:      uintptr(sect.Offset),
+					Size:         uint64(sect.Size),
+					ParentOffset: uint64(sect.Offset),
+				})
+				sectHeader := me.addStructDetailed(block, sect, fmt.Sprintf("Section Header (%s)", sect.Name), uint64(headerSize)+i*sizeOfSection, sizeOfSection, nil)
+				err := parsingutils.AddLinkWithBlock(sectHeader, "Offset", sectData, "points to")
+				if err != nil {
+					return err
+				}
+				i += 1
+			}
+			return nil
+		}
 	}
 
 	switch cmd.Command() {
@@ -41,32 +92,18 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 		return nil, fmt.Errorf("binary contains LC_REQ_DYLD which is not supported")
 	case types.LC_SEGMENT, types.LC_SEGMENT_64:
 		real := cmd.(*macho.Segment)
-		postParsing = func(command *contracts.MemoryBlock) error {
-			switch real.Name {
-			case "__TEXT":
-				context.text = command
-			case "__LINKEDIT":
-				context.linkEdit = command
-			}
-			if real.Offset == 0 && real.Filesz == 0 {
-				return nil
-			}
-			me.addChild(root, &contracts.MemoryBlock{
-				Name:    fmt.Sprintf("Segment (%s)", real.Name),
-				Address: uintptr(real.Offset),
-				Size:    uint64(real.Filesz),
-			})
-			// TODO: add sections
-			// TODO: add detail of sections
-			return nil
-		}
 		data = real
-		banned = append(banned, "Firstsect", "ReaderAt")
+		headerSize = uint64(unsafe.Sizeof(types.Segment32{}))
+		if real.Command() == types.LC_SEGMENT_64 {
+			headerSize = uint64(unsafe.Sizeof(types.Segment64{}))
+		}
+		postParsing = handleSegment(real, headerSize)
+		banned = append(banned, "Firstsect", "ReaderAt") // not part of the headers
 	case types.LC_SYMTAB:
 		real := cmd.(*macho.Symtab)
 		data = real
 		// TODO: add symbols
-		banned = append(banned, "Syms")
+		banned = append(banned, "Syms") // too noisy
 	case types.LC_SYMSEG:
 		real := cmd.(*macho.SymSeg)
 		data = real
@@ -75,12 +112,12 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 		real := cmd.(*macho.Thread)
 		data = real
 		// TODO: add registers
-		banned = append(banned, "Threads")
+		banned = append(banned, "Threads") // too noisy
 	case types.LC_UNIXTHREAD:
 		real := cmd.(*macho.UnixThread)
 		data = real
 		// TODO: add registers
-		banned = append(banned, "Threads")
+		banned = append(banned, "Threads") // too noisy
 	case types.LC_LOADFVMLIB:
 		real := cmd.(*macho.LoadFvmlib)
 		data = real
@@ -105,7 +142,7 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 		real := cmd.(*macho.Dysymtab)
 		data = real
 		// TODO: add syms
-		banned = append(banned, "IndirectSyms")
+		banned = append(banned, "IndirectSyms") // not stored inside
 	case types.LC_LOAD_DYLIB:
 		real := cmd.(*macho.LoadDylib)
 		data = real
@@ -170,7 +207,7 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 			"Entitlements",
 			"EntitlementsDER",
 			"Errors",
-		)
+		) // not stored inside
 	case types.LC_SEGMENT_SPLIT_INFO:
 		real := cmd.(*macho.SplitInfo)
 		data = real
@@ -209,8 +246,8 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 	case types.LC_MAIN:
 		real := cmd.(*macho.EntryPoint)
 		data = real
-		postParsing = func(command *contracts.MemoryBlock) error {
-			return parsingutils.AddLinkWithAddr(command, "EntryOffset", "points to", context.text.Address+uintptr(real.EntryOffset))
+		postParsing = func(block, header *contracts.MemoryBlock) error {
+			return parsingutils.AddLinkWithAddr(header, "EntryOffset", "points to", context.text.Address+uintptr(real.EntryOffset))
 		}
 	case types.LC_DATA_IN_CODE:
 		real := cmd.(*macho.DataInCode)
@@ -258,10 +295,24 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 		return nil, fmt.Errorf("unknown command %#x", cmd.Command())
 	}
 
-	size := uint64(cmd.LoadSize())
-	cmdBlock := me.addStructDetailed(commands, data, fmt.Sprintf("Command %d: %s", i+1, cmd.Command()), offset, size, banned)
+	label := fmt.Sprintf("Command %d: %s", i+1, cmd.Command())
+	var cmdBlock, headerBlock *contracts.MemoryBlock
+
+	if size == headerSize {
+		cmdBlock = me.addStructDetailed(commands, data, label, offset, size, banned)
+		headerBlock = cmdBlock
+	} else {
+		cmdBlock = me.addChild(commands, &contracts.MemoryBlock{
+			Name:         label,
+			Address:      commands.Address + uintptr(offset),
+			Size:         size,
+			ParentOffset: offset,
+		})
+		headerBlock = me.addStructDetailed(cmdBlock, data, "Header", 0, headerSize, banned)
+	}
+
 	if postParsing != nil {
-		err := postParsing(cmdBlock)
+		err := postParsing(cmdBlock, headerBlock)
 		if err != nil {
 			return nil, err
 		}

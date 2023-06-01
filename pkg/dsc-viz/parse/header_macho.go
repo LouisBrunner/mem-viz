@@ -161,6 +161,7 @@ func (me *parser) getMachOLoadCommandParser(frame *blockFrame, baseCommand subco
 			// 		return nil, err
 			// 	}
 			// }
+			// TODO: should add the sections too
 			return blob, nil
 		}
 
