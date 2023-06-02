@@ -112,6 +112,83 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 		}
 	}
 
+	handleLEData := func(data types.LinkEditDataCmd) parseFn {
+		return func(block, header *contracts.MemoryBlock) error {
+			if context.linkEdit == nil {
+				return fmt.Errorf("no __LINKEDIT segment found")
+			}
+			segment := me.addChild(root, &contracts.MemoryBlock{
+				Name:         fmt.Sprintf("Segment (%s)", data.LoadCmd),
+				Address:      uintptr(data.Offset),
+				Size:         uint64(data.Size),
+				ParentOffset: uint64(data.Offset) - uint64(root.Address),
+			})
+			err := parsingutils.AddLinkWithBlock(header, "Offset", segment, "points to")
+			if err != nil {
+				return err
+			}
+			return nil
+		}
+	}
+
+	handleDYLDInfo := func(real *macho.DyldInfoOnly) parseFn {
+		return func(block, header *contracts.MemoryBlock) error {
+			links := []struct {
+				name string
+				prop string
+				off  uint64
+				size uint64
+			}{
+				{
+					name: "Rebase",
+					prop: "RebaseOff",
+					off:  uint64(real.RebaseOff),
+					size: uint64(real.RebaseSize),
+				},
+				{
+					name: "Bind",
+					prop: "BindOff",
+					off:  uint64(real.BindOff),
+					size: uint64(real.BindSize),
+				},
+				{
+					name: "WeakBind",
+					prop: "WeakBindOff",
+					off:  uint64(real.WeakBindOff),
+					size: uint64(real.WeakBindSize),
+				},
+				{
+					name: "LazyBind",
+					prop: "LazyBindOff",
+					off:  uint64(real.LazyBindOff),
+					size: uint64(real.LazyBindSize),
+				},
+				{
+					name: "Export",
+					prop: "ExportOff",
+					off:  uint64(real.ExportOff),
+					size: uint64(real.ExportSize),
+				},
+			}
+			for _, link := range links {
+				if link.off == 0 {
+					continue
+				}
+				segment := me.addChild(root, &contracts.MemoryBlock{
+					Name:         fmt.Sprintf("DYLD %s", link.name),
+					Address:      uintptr(link.off),
+					Size:         uint64(link.size),
+					ParentOffset: uint64(link.off) - uint64(root.Address),
+				})
+				err := parsingutils.AddLinkWithBlock(header, link.prop, segment, "points to")
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}
+
 	switch cmd.Command() {
 	case types.LC_REQ_DYLD:
 		return nil, fmt.Errorf("binary contains LC_REQ_DYLD which is not supported")
@@ -234,11 +311,11 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 	case types.LC_CODE_SIGNATURE:
 		real := cmd.(*macho.CodeSignature)
 		data = real.CodeSignatureCmd
-		// TODO: add detail
+		postParsing = handleLEData(types.LinkEditDataCmd(real.CodeSignatureCmd))
 	case types.LC_SEGMENT_SPLIT_INFO:
 		real := cmd.(*macho.SplitInfo)
 		data = real.SegmentSplitInfoCmd
-		// TODO: add links to rest
+		postParsing = handleLEData(types.LinkEditDataCmd(real.SegmentSplitInfoCmd))
 	case types.LC_REEXPORT_DYLIB:
 		real := cmd.(*macho.ReExportDylib)
 		data = *real // .DylibCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
@@ -258,7 +335,7 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 	case types.LC_DYLD_INFO_ONLY:
 		real := cmd.(*macho.DyldInfoOnly)
 		data = real.DyldInfoCmd
-		// TODO: add links
+		postParsing = handleDYLDInfo(real)
 	case types.LC_LOAD_UPWARD_DYLIB:
 		real := cmd.(*macho.UpwardDylib)
 		data = *real // .DylibCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
@@ -269,7 +346,7 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 	case types.LC_FUNCTION_STARTS:
 		real := cmd.(*macho.FunctionStarts)
 		data = real.LinkEditDataCmd
-		// TODO: add links to rest
+		postParsing = handleLEData(real.LinkEditDataCmd)
 	case types.LC_DYLD_ENVIRONMENT:
 		real := cmd.(*macho.DyldEnvironment)
 		data = *real // .DylinkerCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
@@ -278,19 +355,22 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 		real := cmd.(*macho.EntryPoint)
 		data = real.EntryPointCmd
 		postParsing = func(block, header *contracts.MemoryBlock) error {
+			if context.text == nil {
+				return fmt.Errorf("no __TEXT segment found")
+			}
 			return parsingutils.AddLinkWithAddr(header, "EntryOffset", "points to", context.text.Address+uintptr(real.EntryOffset))
 		}
 	case types.LC_DATA_IN_CODE:
 		real := cmd.(*macho.DataInCode)
 		data = real.DataInCodeCmd
-		// TODO: add links to rest
+		postParsing = handleLEData(types.LinkEditDataCmd(real.DataInCodeCmd))
 	case types.LC_SOURCE_VERSION:
 		real := cmd.(*macho.SourceVersion)
 		data = real.SourceVersionCmd
 	case types.LC_DYLIB_CODE_SIGN_DRS:
 		real := cmd.(*macho.DylibCodeSignDrs)
 		data = real.LinkEditDataCmd
-		// TODO: add links to rest
+		postParsing = handleLEData(real.LinkEditDataCmd)
 	case types.LC_ENCRYPTION_INFO_64:
 		real := cmd.(*macho.EncryptionInfo64)
 		data = real.EncryptionInfo64Cmd
@@ -303,7 +383,7 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 	case types.LC_LINKER_OPTIMIZATION_HINT:
 		real := cmd.(*macho.LinkerOptimizationHint)
 		data = real.LinkEditDataCmd
-		// TODO: add links to rest
+		postParsing = handleLEData(real.LinkEditDataCmd)
 	case types.LC_NOTE:
 		real := cmd.(*macho.Note)
 		data = real.NoteCmd
@@ -315,11 +395,11 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 	case types.LC_DYLD_EXPORTS_TRIE:
 		real := cmd.(*macho.DyldExportsTrie)
 		data = real.LinkEditDataCmd
-		// TODO: add links to rest
+		postParsing = handleLEData(real.LinkEditDataCmd)
 	case types.LC_DYLD_CHAINED_FIXUPS:
 		real := cmd.(*macho.DyldChainedFixups)
 		data = real.LinkEditDataCmd
-		// TODO: add links to rest
+		postParsing = handleLEData(real.LinkEditDataCmd)
 	case types.LC_FILESET_ENTRY:
 		real := cmd.(*macho.FilesetEntry)
 		data = *real // .FilesetEntryCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
