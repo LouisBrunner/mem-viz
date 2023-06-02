@@ -2,10 +2,12 @@ package macho
 
 import (
 	"fmt"
+	"io"
 	"reflect"
 	"unsafe"
 
 	"github.com/LouisBrunner/mem-viz/pkg/contracts"
+	subcontracts "github.com/LouisBrunner/mem-viz/pkg/dsc-viz/contracts"
 	"github.com/LouisBrunner/mem-viz/pkg/parsingutils"
 	"github.com/blacktop/go-macho"
 	"github.com/blacktop/go-macho/types"
@@ -71,10 +73,6 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 				if sect.Seg != real.Name {
 					continue
 				}
-				// FIXME: sorta breaks the viz but I want to keep them...
-				// if sect.Size == 0 {
-				// 	continue
-				// }
 				sectHeader := me.addStructDetailed(
 					block,
 					sect.SectionHeader,
@@ -107,6 +105,7 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 			for i, thread := range threads {
 				block := me.addStruct(block, thread, fmt.Sprintf("Thread State %d", i+1), offset)
 				offset += block.Size
+				// FIXME: would be nice to have a link from PC/RIP
 			}
 			return nil
 		}
@@ -189,6 +188,63 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 		}
 	}
 
+	handleSymtab := func(real *macho.Symtab) parseFn {
+		return func(block, header *contracts.MemoryBlock) error {
+			// FIXME: assume 64bit
+			symbols := me.addChild(root, &contracts.MemoryBlock{
+				Name:         fmt.Sprintf("Symbols (%d)", real.Nsyms),
+				Address:      uintptr(real.Symoff),
+				Size:         uint64(real.Nsyms) * uint64(unsafe.Sizeof(subcontracts.NList64{})),
+				ParentOffset: uint64(real.Symoff) - uint64(root.Address),
+			})
+			err := parsingutils.AddLinkWithBlock(header, "Symoff", symbols, "points to")
+			if err != nil {
+				return err
+			}
+			offset := uint64(0)
+			for i, sym := range real.Syms {
+				// FIXME: assume 64bit
+				nlist := subcontracts.NList64{
+					NStrx:  0, // FIXME: unsupported because of the way they parse symbols
+					NType:  uint8(sym.Type),
+					NSect:  sym.Sect,
+					NDesc:  uint16(sym.Desc),
+					NValue: sym.Value,
+				}
+				symBlock := me.addStruct(symbols, nlist, fmt.Sprintf("Symbol (%d)", i+1), offset)
+				addValue(symBlock, "Name", sym.Name, 0, 0)
+				// FIXME: impossible due to the way they parse symbols
+				// err = parsingutils.AddLinkWithAddr(header, "Stroff", "points to", uintptr(nlist.NStrx))
+				// if err != nil {
+				// 	return err
+				// }
+				offset += symBlock.Size
+			}
+			strings := me.addChild(root, &contracts.MemoryBlock{
+				Name:         "Strings",
+				Address:      uintptr(real.Stroff),
+				Size:         uint64(real.Strsize),
+				ParentOffset: uint64(real.Stroff) - uint64(root.Address),
+			})
+			err = parsingutils.AddLinkWithBlock(header, "Stroff", strings, "points to")
+			if err != nil {
+				return err
+			}
+			for i := 0; i < int(real.Strsize); {
+				addr := strings.Address + uintptr(i)
+				str := parsingutils.ReadCString(io.NewSectionReader(context.header, int64(addr), int64(real.Strsize)-int64(i)))
+				strBlock := me.addChild(strings, &contracts.MemoryBlock{
+					Name:         str,
+					Address:      addr,
+					Size:         uint64(len(str) + 1),
+					ParentOffset: uint64(addr) - uint64(strings.Address),
+				})
+				i += int(strBlock.Size)
+			}
+			return nil
+		}
+	}
+
 	switch cmd.Command() {
 	case types.LC_REQ_DYLD:
 		return nil, fmt.Errorf("binary contains LC_REQ_DYLD which is not supported")
@@ -204,7 +260,7 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 	case types.LC_SYMTAB:
 		real := cmd.(*macho.Symtab)
 		data = real.SymtabCmd
-		// TODO: add symbols
+		postParsing = handleSymtab(real)
 	case types.LC_SYMSEG:
 		real := cmd.(*macho.SymSeg)
 		data = real.SymsegCmd

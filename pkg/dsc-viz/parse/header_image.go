@@ -45,7 +45,7 @@ func (me *parser) parseImageText(frame *blockFrame, img arrayElement) error {
 }
 
 func (me *parser) addImage(frame *blockFrame, image *contracts.MemoryBlock, addressName string, address subcontracts.Address, sizeName string, size uint64, pathOffsetName string, pathOffset subcontracts.Address) error {
-	path := readCString(pathOffset.GetReader(frame.cache, 0, me.slide))
+	path := parsingutils.ReadCString(pathOffset.GetReader(frame.cache, 0, me.slide))
 
 	// FIXME: not sure about this, quite noisy also abusing the 0/0
 	// addValue(img.Block, "Path", path, 0, 0)

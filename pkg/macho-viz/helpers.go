@@ -11,11 +11,16 @@ import (
 	"golang.org/x/exp/slices"
 )
 
+func isOnEdge(child, parent *contracts.MemoryBlock) bool {
+	return child.Address == parent.Address || child.Address == parent.Address+uintptr(parent.GetSize())
+}
+
 func (me *parser) addChildDeep(parent, child *contracts.MemoryBlock) *contracts.MemoryBlock {
+	isEmpty := child.GetSize() == 0
 	for i, curr := range parent.Content {
-		if parsingutils.IsInsideOf(child, curr) {
+		if parsingutils.IsInsideOf(child, curr) && !(isEmpty && isOnEdge(child, curr)) {
 			return me.addChildDeep(curr, child)
-		} else if curr.Address > child.Address {
+		} else if curr.Address > child.Address || (isEmpty && curr.Address == child.Address) {
 			parent.Content = slices.Insert(parent.Content, i, child)
 			return parent
 		}

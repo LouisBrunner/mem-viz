@@ -107,7 +107,7 @@ func (me *parser) getMachOLoadCommandParser(frame *blockFrame, baseCommand subco
 
 	addString := func(label string, offset *subcontracts.RelativeAddress32) machOLoadCommandParser {
 		return func(frame *blockFrame, path string, base, after subcontracts.Address, linkEdit *linkEditData) (*contracts.MemoryBlock, error) {
-			str := readCString(base.GetReader(frame.cache, uint64(*offset), me.slide))
+			str := parsingutils.ReadCString(base.GetReader(frame.cache, uint64(*offset), me.slide))
 			return me.createBlobBlock(frame, label, subcontracts.ManualAddress(*offset), "", uint64(len(str)+1), fmt.Sprintf("%s: %s", label, str))
 		}
 	}
