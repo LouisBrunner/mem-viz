@@ -3,6 +3,8 @@ package viz
 import (
 	"fmt"
 	"io"
+	"strings"
+	"unicode"
 
 	"github.com/LouisBrunner/mem-viz/pkg/commons"
 	"github.com/LouisBrunner/mem-viz/pkg/contracts"
@@ -52,4 +54,21 @@ func (me *stringBuilder) Writef(format string, args ...interface{}) {
 
 func (me *stringBuilder) Close() error {
 	return me.err
+}
+
+func indent(depth int, s string) string {
+	return strings.Repeat(s, depth)
+}
+
+func makeAcronym(s string) string {
+	uppers := []rune{}
+	for _, c := range s {
+		if unicode.IsUpper(c) {
+			uppers = append(uppers, c)
+		}
+	}
+	if len(uppers) == 0 {
+		return s
+	}
+	return string(uppers)
 }

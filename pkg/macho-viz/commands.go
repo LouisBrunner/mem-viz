@@ -45,12 +45,6 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 
 	handleSegment := func(real *macho.Segment, headerSize uint64) parseFn {
 		return func(block, header *contracts.MemoryBlock) error {
-			switch real.Name {
-			case "__TEXT":
-				context.text = block
-			case "__LINKEDIT":
-				context.linkEdit = block
-			}
 			if real.Offset == 0 && real.Filesz == 0 {
 				return nil
 			}
@@ -60,6 +54,12 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 				Size:         uint64(real.Filesz),
 				ParentOffset: real.Offset - uint64(root.Address),
 			})
+			switch real.Name {
+			case "__TEXT":
+				context.text = segment
+			case "__LINKEDIT":
+				context.linkEdit = segment
+			}
 			err := parsingutils.AddLinkWithBlock(header, "Offset", segment, "points to")
 			if err != nil {
 				return err

@@ -1,13 +1,17 @@
 package commons
 
-import "github.com/LouisBrunner/mem-viz/pkg/contracts"
+import (
+	"github.com/LouisBrunner/mem-viz/pkg/contracts"
+)
 
-type VisitContext struct {
-	Depth           int
-	PreviousSibling *contracts.MemoryBlock
-	NextSibling     *contracts.MemoryBlock
-	Parent          *contracts.MemoryBlock
+type VisitContextV struct {
+	Depth                 int
+	PreviousSibling       *contracts.MemoryBlock
+	NextSibling           *contracts.MemoryBlock
+	Parent                *contracts.MemoryBlock
+	OutBeforeChildrenSkip bool
 }
+type VisitContext = *VisitContextV
 
 type BlockVisitor = func(ctx VisitContext, block *contracts.MemoryBlock) error
 type ValueVisitor = func(ctx VisitContext, block *contracts.MemoryBlock, value *contracts.MemoryValue) error
@@ -21,28 +25,31 @@ type VisitorSetup struct {
 }
 
 func visitEachBlockInternal(root *contracts.MemoryBlock, ctx VisitContext, visitor VisitorSetup) error {
+	ctx.OutBeforeChildrenSkip = false
 	if visitor.BeforeChildren != nil {
 		err := visitor.BeforeChildren(ctx, root)
 		if err != nil {
 			return err
 		}
 	}
-	previousSibling := ctx.PreviousSibling
-	for i, child := range root.Content {
-		nextSibling := ctx.NextSibling
-		if i < len(root.Content)-1 {
-			nextSibling = root.Content[i+1]
+	if !ctx.OutBeforeChildrenSkip {
+		var previousSibling *contracts.MemoryBlock
+		for i, child := range root.Content {
+			var nextSibling *contracts.MemoryBlock
+			if i < len(root.Content)-1 {
+				nextSibling = root.Content[i+1]
+			}
+			err := visitEachBlockInternal(child, &VisitContextV{
+				Depth:           ctx.Depth + 1,
+				PreviousSibling: previousSibling,
+				NextSibling:     nextSibling,
+				Parent:          root,
+			}, visitor)
+			if err != nil {
+				return err
+			}
+			previousSibling = child
 		}
-		err := visitEachBlockInternal(child, VisitContext{
-			Depth:           ctx.Depth + 1,
-			PreviousSibling: previousSibling,
-			NextSibling:     nextSibling,
-			Parent:          root,
-		}, visitor)
-		if err != nil {
-			return err
-		}
-		previousSibling = child
 	}
 	if visitor.AfterChildren != nil {
 		err := visitor.AfterChildren(ctx, root)
@@ -54,7 +61,7 @@ func visitEachBlockInternal(root *contracts.MemoryBlock, ctx VisitContext, visit
 }
 
 func VisitEachBlockAdvanced(root *contracts.MemoryBlock, visitor VisitorSetup) error {
-	return visitEachBlockInternal(root, VisitContext{
+	return visitEachBlockInternal(root, &VisitContextV{
 		Depth:           0,
 		PreviousSibling: nil,
 		Parent:          nil,
@@ -62,7 +69,7 @@ func VisitEachBlockAdvanced(root *contracts.MemoryBlock, visitor VisitorSetup) e
 }
 
 func VisitEachBlock(root *contracts.MemoryBlock, visitor BlockVisitor) error {
-	return visitEachBlockInternal(root, VisitContext{
+	return visitEachBlockInternal(root, &VisitContextV{
 		Depth:           0,
 		PreviousSibling: nil,
 		Parent:          nil,
