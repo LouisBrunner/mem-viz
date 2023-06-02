@@ -13,7 +13,7 @@ import (
 
 func (me *outputter) Text(m contracts.MemoryBlock) error {
 	// TODO: make this configurable on (.*)-viz
-	const thresholdsArrayTooBig = 10000
+	const thresholdsArrayTooBig = 1000
 	const showLinks = true
 	const showHiddenLinks = true
 	const showProperties = true

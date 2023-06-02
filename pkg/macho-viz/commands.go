@@ -17,6 +17,7 @@ type contextData struct {
 	header   *macho.File
 	text     *contracts.MemoryBlock
 	linkEdit *contracts.MemoryBlock
+	symbols  *contracts.MemoryBlock
 }
 
 type parseFn func(block, header *contracts.MemoryBlock) error
@@ -197,6 +198,7 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 				Size:         uint64(real.Nsyms) * uint64(unsafe.Sizeof(subcontracts.NList64{})),
 				ParentOffset: uint64(real.Symoff) - uint64(root.Address),
 			})
+			context.symbols = symbols
 			err := parsingutils.AddLinkWithBlock(header, "Symoff", symbols, "points to")
 			if err != nil {
 				return err
@@ -234,12 +236,130 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 				addr := strings.Address + uintptr(i)
 				str := parsingutils.ReadCString(io.NewSectionReader(context.header, int64(addr), int64(real.Strsize)-int64(i)))
 				strBlock := me.addChild(strings, &contracts.MemoryBlock{
-					Name:         str,
+					Name:         fmt.Sprintf("%q", str),
 					Address:      addr,
 					Size:         uint64(len(str) + 1),
 					ParentOffset: uint64(addr) - uint64(strings.Address),
 				})
 				i += int(strBlock.Size)
+			}
+			return nil
+		}
+	}
+
+	handleDSymtab := func(real *macho.Dysymtab) parseFn {
+		return func(block, header *contracts.MemoryBlock) error {
+			if context.symbols == nil {
+				return fmt.Errorf("no symbols found")
+			}
+			isyms := []struct {
+				name string
+				prop string
+				off  uint64
+				len  uint64
+			}{
+				{
+					name: "Local Symbols",
+					prop: "Ilocalsym",
+					off:  uint64(real.Ilocalsym),
+					len:  uint64(real.Nlocalsym),
+				},
+				{
+					name: "External Symbols",
+					prop: "Iextdefsym",
+					off:  uint64(real.Iextdefsym),
+					len:  uint64(real.Nextdefsym),
+				},
+				{
+					name: "Undefined Symbols",
+					prop: "Iundefsym",
+					off:  uint64(real.Iundefsym),
+					len:  uint64(real.Nundefsym),
+				},
+			}
+			for _, isym := range isyms {
+				if isym.off == 0 && isym.len == 0 {
+					continue
+				}
+				// FIXME: assume 64bit
+				entrySize := uintptr(unsafe.Sizeof(subcontracts.NList64{}))
+				segment := me.addChild(context.symbols, &contracts.MemoryBlock{
+					Name:         fmt.Sprintf("DSYM %s (%d)", isym.name, isym.len),
+					Address:      context.symbols.Address + uintptr(isym.off)*entrySize,
+					Size:         isym.len * uint64(entrySize),
+					ParentOffset: isym.off * uint64(entrySize),
+				})
+				err := parsingutils.AddLinkWithBlock(header, isym.prop, segment, "points to")
+				if err != nil {
+					return err
+				}
+			}
+			eentries := []struct {
+				name   string
+				prop   string
+				off    uint64
+				len    uint64
+				sizeOf uint64
+			}{
+				{
+					name:   "TOC",
+					prop:   "Tocoffset",
+					off:    uint64(real.Tocoffset),
+					len:    uint64(real.Ntoc),
+					sizeOf: uint64(unsafe.Sizeof(types.DylibTableOfContents{})),
+				},
+				{
+					name: "Module Table",
+					prop: "Modtaboff",
+					off:  uint64(real.Modtaboff),
+					len:  uint64(real.Nmodtab),
+					// FIXME: assume 64bit
+					sizeOf: uint64(unsafe.Sizeof(types.DylibModule64{})),
+				},
+				{
+					name:   "External Relocations Table",
+					prop:   "Extrefsymoff",
+					off:    uint64(real.Extrefsymoff),
+					len:    uint64(real.Nextrefsyms),
+					sizeOf: uint64(unsafe.Sizeof(types.DylibReference(0))),
+				},
+				{
+					name:   "Indirect Symbols Table",
+					prop:   "Indirectsymoff",
+					off:    uint64(real.Indirectsymoff),
+					len:    uint64(real.Nindirectsyms),
+					sizeOf: uint64(unsafe.Sizeof(types.DylibReference(0))),
+				},
+				{
+					name:   "External Symbols Table",
+					prop:   "Extreloff",
+					off:    uint64(real.Extreloff),
+					len:    uint64(real.Nextrel),
+					sizeOf: uint64(unsafe.Sizeof(types.Reloc{})),
+				},
+				{
+					name:   "Local Symbols Table",
+					prop:   "Locreloff",
+					off:    uint64(real.Locreloff),
+					len:    uint64(real.Nlocrel),
+					sizeOf: uint64(unsafe.Sizeof(types.Reloc{})),
+				},
+			}
+			for _, entries := range eentries {
+				if entries.off == 0 && entries.len == 0 {
+					continue
+				}
+				segment := me.addChild(root, &contracts.MemoryBlock{
+					Name:         fmt.Sprintf("DSYM %s (%d)", entries.name, entries.len),
+					Address:      uintptr(entries.off),
+					Size:         uint64(entries.len * entries.sizeOf),
+					ParentOffset: uint64(entries.off) - uint64(root.Address),
+				})
+				err := parsingutils.AddLinkWithBlock(header, entries.prop, segment, "points to")
+				if err != nil {
+					return err
+				}
+				// TODO: add details for each entry
 			}
 			return nil
 		}
@@ -299,7 +419,7 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 	case types.LC_DYSYMTAB:
 		real := cmd.(*macho.Dysymtab)
 		data = real.DysymtabCmd
-		// TODO: add syms
+		postParsing = handleDSymtab(real)
 	case types.LC_LOAD_DYLIB:
 		real := cmd.(*macho.LoadDylib)
 		data = *real // .DylibCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
