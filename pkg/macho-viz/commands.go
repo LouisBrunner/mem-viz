@@ -14,11 +14,13 @@ import (
 )
 
 type contextData struct {
-	header   *macho.File
-	text     *contracts.MemoryBlock
-	linkEdit *contracts.MemoryBlock
-	symbols  *contracts.MemoryBlock
-	symtab   *macho.Symtab
+	header              *macho.File
+	text                *contracts.MemoryBlock
+	linkEdit            *contracts.MemoryBlock
+	symbols             *contracts.MemoryBlock
+	symtab              *macho.Symtab
+	stubSections        []*types.Section
+	lazyPointerSections []*types.Section
 }
 
 type parseFn func(block, header *contracts.MemoryBlock) error
@@ -94,9 +96,11 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 					if err != nil {
 						return err
 					}
-					err = me.addArchSpecificSection(sectData, sect)
-					if err != nil {
-						return err
+					switch {
+					case sect.Flags.IsSymbolStubs():
+						context.stubSections = append(context.stubSections, sect)
+					case sect.Flags.IsLazySymbolPointers():
+						context.lazyPointerSections = append(context.lazyPointerSections, sect)
 					}
 				}
 				i += 1
@@ -367,6 +371,7 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 				}
 				switch entries.prop {
 				case "Indirectsymoff":
+					names := make([]string, real.Nindirectsyms)
 					for i, sym := range real.IndirectSyms {
 						entry := me.addChild(segment, &contracts.MemoryBlock{
 							Name:         fmt.Sprintf("Indirect Symbol (%d)", i+1),
@@ -375,14 +380,50 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 							ParentOffset: uint64(i) * entries.sizeOf,
 						})
 						addValue(entry, "Index", sym, 0, 0)
+						name := "not found"
 						if sym < uint32(len(context.symtab.Syms)) {
-							addValue(entry, "Name", context.symtab.Syms[sym].Name, 0, 0)
+							name = context.symtab.Syms[sym].Name
 							err := parsingutils.AddLinkWithAddr(entry, "Index", "refers to", context.symbols.Address+uintptr(sym)*unsafe.Sizeof(subcontracts.NList64{}))
 							if err != nil {
 								return err
 							}
-						} else {
-							addValue(entry, "Name", "not found", 0, 0)
+						}
+						addValue(entry, "Name", name, 0, 0)
+						names[i] = name
+					}
+					for _, sect := range context.stubSections {
+						indirectIndex := sect.Reserved1
+						sizeOfStub := uint64(sect.Reserved2)
+						numberOfStubs := sect.Size / sizeOfStub
+						if uint64(indirectIndex)+numberOfStubs > uint64(real.Nindirectsyms) {
+							return fmt.Errorf("invalid indirect symbol index in %s (%d vs %d)", sect.Name, uint64(indirectIndex)+numberOfStubs, real.Nindirectsyms)
+						}
+						for i := range numberOfStubs {
+							index := indirectIndex + uint32(i)
+							me.addChild(segment, &contracts.MemoryBlock{
+								Name:         fmt.Sprintf("Stub of %s", names[index]),
+								Address:      uintptr(sect.Offset) + uintptr(i*sizeOfStub),
+								Size:         sizeOfStub,
+								ParentOffset: i * sizeOfStub,
+							})
+							// TODO: how to add pointer to the lazy pointer section?
+						}
+					}
+					for _, sect := range context.lazyPointerSections {
+						indirectIndex := sect.Reserved1
+						pointerSize := uint64(8) // TODO: assume 64bit
+						numberOfPointers := sect.Size / uint64(pointerSize)
+						if uint64(indirectIndex)+numberOfPointers > uint64(real.Nindirectsyms) {
+							return fmt.Errorf("invalid indirect symbol index in %s (%d vs %d)", sect.Name, uint64(indirectIndex)+numberOfPointers, real.Nindirectsyms)
+						}
+						for i := range numberOfPointers {
+							index := indirectIndex + uint32(i)
+							me.addChild(segment, &contracts.MemoryBlock{
+								Name:         fmt.Sprintf("Lazy Pointer for %s", names[index]),
+								Address:      uintptr(sect.Offset) + uintptr(i*pointerSize),
+								Size:         uint64(pointerSize),
+								ParentOffset: i * uint64(pointerSize),
+							})
 						}
 					}
 				default:

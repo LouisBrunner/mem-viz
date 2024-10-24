@@ -1,6 +1,6 @@
 module github.com/LouisBrunner/mem-viz
 
-go 1.19
+go 1.22
 
 require (
 	github.com/blacktop/go-macho v1.1.155
