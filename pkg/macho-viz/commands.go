@@ -18,6 +18,7 @@ type contextData struct {
 	text     *contracts.MemoryBlock
 	linkEdit *contracts.MemoryBlock
 	symbols  *contracts.MemoryBlock
+	symtab   *macho.Symtab
 }
 
 type parseFn func(block, header *contracts.MemoryBlock) error
@@ -90,6 +91,10 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 						ParentOffset: uint64(sect.Offset),
 					})
 					err := parsingutils.AddLinkWithBlock(sectHeader, "Offset", sectData, "points to")
+					if err != nil {
+						return err
+					}
+					err = me.addArchSpecificSection(sectData, sect)
 					if err != nil {
 						return err
 					}
@@ -199,6 +204,7 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 				ParentOffset: uint64(real.Symoff) - uint64(root.Address),
 			})
 			context.symbols = symbols
+			context.symtab = real
 			err := parsingutils.AddLinkWithBlock(header, "Symoff", symbols, "points to")
 			if err != nil {
 				return err
@@ -359,7 +365,29 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 				if err != nil {
 					return err
 				}
-				// TODO: add details for each entry
+				switch entries.prop {
+				case "Indirectsymoff":
+					for i, sym := range real.IndirectSyms {
+						entry := me.addChild(segment, &contracts.MemoryBlock{
+							Name:         fmt.Sprintf("Indirect Symbol (%d)", i+1),
+							Address:      uintptr(entries.off) + uintptr(i)*uintptr(entries.sizeOf),
+							Size:         entries.sizeOf,
+							ParentOffset: uint64(i) * entries.sizeOf,
+						})
+						addValue(entry, "Index", sym, 0, 0)
+						if sym < uint32(len(context.symtab.Syms)) {
+							addValue(entry, "Name", context.symtab.Syms[sym].Name, 0, 0)
+							err := parsingutils.AddLinkWithAddr(entry, "Index", "refers to", context.symbols.Address+uintptr(sym)*unsafe.Sizeof(subcontracts.NList64{}))
+							if err != nil {
+								return err
+							}
+						} else {
+							addValue(entry, "Name", "not found", 0, 0)
+						}
+					}
+				default:
+					// TODO: add details for each entry
+				}
 			}
 			return nil
 		}
