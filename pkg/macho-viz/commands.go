@@ -101,6 +101,33 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 						context.stubSections = append(context.stubSections, sect)
 					case sect.Flags.IsLazySymbolPointers():
 						context.lazyPointerSections = append(context.lazyPointerSections, sect)
+					case sect.Flags.IsNonLazySymbolPointers():
+						// TODO: 8 byte per entry, don't know how to interpret this
+					case sect.Flags.IsInterposing():
+						// TODO: 2 pointers per entry, don't know how to interpret this
+					case sect.Flags.IsCstringLiterals():
+						for i := 0; i < int(sect.Size); {
+							addr := sectData.Address + uintptr(i)
+							str := parsingutils.ReadCString(io.NewSectionReader(context.header, int64(addr), int64(sect.Size)-int64(i)))
+							strBlock := me.addChild(sectData, &contracts.MemoryBlock{
+								Name:         fmt.Sprintf("%q", str),
+								Address:      addr,
+								Size:         uint64(len(str) + 1),
+								ParentOffset: uint64(addr) - uint64(sectData.Address),
+							})
+							i += int(strBlock.Size)
+						}
+					default:
+						switch sect.Name {
+						case "__info_plist":
+							plist := parsingutils.ReadCString(io.NewSectionReader(context.header, int64(sectData.Address), int64(sect.Size)))
+							me.addChildDeep(sectData, &contracts.MemoryBlock{
+								Name:         plist,
+								Address:      sectData.Address,
+								Size:         uint64(len(plist)),
+								ParentOffset: 0,
+							})
+						}
 					}
 				}
 				i += 1
@@ -233,7 +260,7 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 				offset += symBlock.Size
 			}
 			strings := me.addChild(root, &contracts.MemoryBlock{
-				Name:         "Strings",
+				Name:         "Symbol Strings",
 				Address:      uintptr(real.Stroff),
 				Size:         uint64(real.Strsize),
 				ParentOffset: uint64(real.Stroff) - uint64(root.Address),
