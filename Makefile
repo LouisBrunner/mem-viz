@@ -15,7 +15,7 @@ test:
 	go test -v ./...
 .PHONY: test
 
-build: mem-viz dsc-viz
+build: mem-viz dsc-viz macho-viz
 .PHONY: build
 
 mem-viz:
