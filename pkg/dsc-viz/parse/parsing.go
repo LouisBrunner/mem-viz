@@ -13,7 +13,7 @@ import (
 func (me *parser) parseAndAdd(r io.Reader, parent *contracts.MemoryBlock, offset subcontracts.Address, data any, label string) (*contracts.MemoryBlock, error) {
 	err := commons.Unpack(r, data)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse %s: %w", label, err)
 	}
 	return me.createStructBlock(parent, data, label, offset)
 }

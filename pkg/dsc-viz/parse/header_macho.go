@@ -81,7 +81,7 @@ func (me *parser) forEachMachOLoadCommand(frame *blockFrame, header subcontracts
 		baseCommand := subcontracts.LoadCommand{}
 		err := commons.Unpack(address.GetReader(frame.cache, 0, me.slide), &baseCommand)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to unpack load command %d for %+v: %w", i, frame, err)
 		}
 
 		err = callback(i, address, baseCommand)

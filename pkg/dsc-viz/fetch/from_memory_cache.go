@@ -51,7 +51,7 @@ func cacheFromMemory(logger *logrus.Logger, pointer uintptr) (_ *fromMemoryCache
 	mem := &fromMemoryCache{pointer: pointer}
 	err := commons.Unpack(mem.ReaderAtOffset(0), &mem.header)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to unpack header: %w", err)
 	}
 	err = checkMagic(mem.header)
 	if err != nil {

@@ -74,7 +74,7 @@ func (me *parser) parseMappingWithSlide(frame *blockFrame, i int, mapping arrayE
 	versionHeader := subcontracts.DYLDCacheSlideInfoVersion{}
 	err = commons.Unpack(reader, &versionHeader)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to unpack slide info for %q: %w", mapping.Block.Name, err)
 	}
 
 	title := fmt.Sprintf("%s.Slide Info (V%d)", mapping.Block.Name, versionHeader.Version)

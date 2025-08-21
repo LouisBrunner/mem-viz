@@ -153,7 +153,7 @@ func calculateSlide(cache subcontracts.Cache, header subcontracts.DYLDCacheHeade
 	mapping := &subcontracts.DYLDCacheMappingInfo{}
 	err := commons.Unpack(reader, mapping)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to unpack mapping info to calculate slide: %w", err)
 	}
 	return uint64(cache.BaseAddress() - uintptr(mapping.Address)), nil
 }

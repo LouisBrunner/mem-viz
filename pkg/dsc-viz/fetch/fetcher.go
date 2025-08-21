@@ -78,7 +78,7 @@ func (me *fetcher[T, F]) fetchSubCaches() error {
 			offset := int64(header.SubCacheArrayOffset) + i*int64(unsafe.Sizeof(*cacheHeaderV2))
 			err = commons.Unpack(me.main.ReaderAtOffset(offset), cacheHeaderV2)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to unpack v2 subcache header: %w", err)
 			}
 			cache, err = me.processor.CacheFromEntryV2(me.logger, me.main, i, *cacheHeaderV2)
 		} else {
@@ -86,7 +86,7 @@ func (me *fetcher[T, F]) fetchSubCaches() error {
 			offset := int64(header.SubCacheArrayOffset) + i*int64(unsafe.Sizeof(*cacheHeaderV1))
 			err = commons.Unpack(me.main.ReaderAtOffset(offset), &cacheHeaderV1)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to unpack v1 subcache header: %w", err)
 			}
 			cache, err = me.processor.CacheFromEntryV1(me.logger, me.main, i, *cacheHeaderV1)
 		}

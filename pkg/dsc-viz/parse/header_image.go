@@ -64,6 +64,7 @@ func (me *parser) addImage(frame *blockFrame, image *contracts.MemoryBlock, addr
 }
 
 func (me *parser) addImageTEXT(frame *blockFrame, image *contracts.MemoryBlock, path, addressName string, address subcontracts.Address, sizeName string, size uint64) error {
+	me.logger.Debugf("parsing TEXT for %s", path)
 	absAddr := address.AddBase(frame.parent.Address).Calculate(me.slide)
 	currBlock, err := me.findOrCreateUniqueBlock(categoryImages, func(i int, block *contracts.MemoryBlock) bool {
 		return parsingutils.IsInsideOf(&contracts.MemoryBlock{Address: absAddr}, &contracts.MemoryBlock{Address: block.Address, Size: roundUp(block.GetSize(), page)})
@@ -103,7 +104,7 @@ func (me *parser) addImageTEXT(frame *blockFrame, image *contracts.MemoryBlock, 
 	}
 	_, err = me.parseMachO(imgFrame, text, path)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to parse Mach-O image for %q: %w", path, err)
 	}
 
 	me.updateCategoryBlock(currBlock, "Images TEXT")

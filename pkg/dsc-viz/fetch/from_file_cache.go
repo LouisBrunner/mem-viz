@@ -46,7 +46,7 @@ func cacheFromFile(logger *logrus.Logger, file *os.File) (*fromFileCache, error)
 	cache := &fromFileCache{logger: logger, file: file}
 	err := commons.Unpack(file, &cache.header)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to unpack header from file: %w", err)
 	}
 	err = checkMagic(cache.header)
 	if err != nil {
