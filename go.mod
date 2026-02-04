@@ -10,11 +10,11 @@ require (
 	github.com/blacktop/go-macho v1.1.259
 	github.com/dustin/go-humanize v1.0.1
 	github.com/lunixbochs/struc v0.0.0-20241101090106-8d528fa2c543
-	github.com/sirupsen/logrus v1.9.3
+	github.com/sirupsen/logrus v1.9.4
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/exp v0.0.0-20250819193227-8b4c13bb791b
-	golang.org/x/sys v0.39.0
+	golang.org/x/sys v0.40.0
 )
 
 require (
