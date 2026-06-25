@@ -1,20 +1,18 @@
 module github.com/LouisBrunner/mem-viz
 
-go 1.24.0
-
-toolchain go1.24.2
+go 1.26.2
 
 tool honnef.co/go/tools/cmd/staticcheck
 
 require (
-	github.com/blacktop/go-macho v1.1.263
+	github.com/blacktop/go-macho v1.1.282
 	github.com/dustin/go-humanize v1.0.1
 	github.com/lunixbochs/struc v0.0.0-20241101090106-8d528fa2c543
 	github.com/sirupsen/logrus v1.9.4
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/exp v0.0.0-20250819193227-8b4c13bb791b
-	golang.org/x/sys v0.41.0
+	golang.org/x/exp v0.0.0-20260611194520-c48552f49976
+	golang.org/x/sys v0.46.0
 )
 
 require (
@@ -24,9 +22,9 @@ require (
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20231108232855-2478ac86f678 // indirect
-	golang.org/x/mod v0.27.0 // indirect
-	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/tools v0.36.0 // indirect
+	golang.org/x/mod v0.37.0 // indirect
+	golang.org/x/sync v0.21.0 // indirect
+	golang.org/x/tools v0.46.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	honnef.co/go/tools v0.6.1 // indirect
