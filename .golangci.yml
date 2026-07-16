@@ -14,3 +14,11 @@ linters:
           disabled: true
         - name: unexported-return
           disabled: true
+        - name: exported
+          disabled: true
+        - name: package-comments
+          disabled: true
+        - name: unused-parameter
+          disabled: true
+        - name: superfluous-else
+          disabled: true

@@ -26,7 +26,7 @@ type contextData struct {
 type parseFn func(block, header *contracts.MemoryBlock) error
 
 func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd macho.Load, offset uint64, context *contextData) (*contracts.MemoryBlock, error) { //nolint:gocyclo
-	var data interface{}
+	var data any
 	banned := []string{
 		"LoadBytes",
 	}
@@ -49,18 +49,18 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 		return fmt.Errorf("unused load command (%s), currently unsupported", block.Name)
 	}
 
-	handleSegment := func(real *macho.Segment, headerSize uint64) parseFn {
+	handleSegment := func(realSeg *macho.Segment, headerSize uint64) parseFn {
 		return func(block, header *contracts.MemoryBlock) error {
-			if real.Offset == 0 && real.Filesz == 0 {
+			if realSeg.Offset == 0 && realSeg.Filesz == 0 {
 				return nil
 			}
 			segment := me.addChild(root, &contracts.MemoryBlock{
-				Name:         fmt.Sprintf("Segment (%s)", real.Name),
-				Address:      uintptr(real.Offset),
-				Size:         uint64(real.Filesz),
-				ParentOffset: real.Offset - uint64(root.Address),
+				Name:         fmt.Sprintf("Segment (%s)", realSeg.Name),
+				Address:      uintptr(realSeg.Offset),
+				Size:         uint64(realSeg.Filesz),
+				ParentOffset: realSeg.Offset - uint64(root.Address),
 			})
-			switch real.Name {
+			switch realSeg.Name {
 			case "__TEXT":
 				context.text = segment
 			case "__LINKEDIT":
@@ -74,7 +74,7 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 			// FIXME: SectionHeader has the wrong size (8 bytes too much in 64bit)
 			sizeOfSection := uint64(unsafe.Sizeof(types.SectionHeader{}) - 8)
 			for _, sect := range context.header.Sections {
-				if sect.Seg != real.Name {
+				if sect.Seg != realSeg.Name {
 					continue
 				}
 				sectHeader := me.addStructDetailed(
@@ -167,7 +167,7 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 		}
 	}
 
-	handleDYLDInfo := func(real *macho.DyldInfoOnly) parseFn {
+	handleDYLDInfo := func(realDIO *macho.DyldInfoOnly) parseFn {
 		return func(_block, header *contracts.MemoryBlock) error {
 			links := []struct {
 				name string
@@ -178,32 +178,32 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 				{
 					name: "Rebase",
 					prop: "RebaseOff",
-					off:  uint64(real.RebaseOff),
-					size: uint64(real.RebaseSize),
+					off:  uint64(realDIO.RebaseOff),
+					size: uint64(realDIO.RebaseSize),
 				},
 				{
 					name: "Bind",
 					prop: "BindOff",
-					off:  uint64(real.BindOff),
-					size: uint64(real.BindSize),
+					off:  uint64(realDIO.BindOff),
+					size: uint64(realDIO.BindSize),
 				},
 				{
 					name: "WeakBind",
 					prop: "WeakBindOff",
-					off:  uint64(real.WeakBindOff),
-					size: uint64(real.WeakBindSize),
+					off:  uint64(realDIO.WeakBindOff),
+					size: uint64(realDIO.WeakBindSize),
 				},
 				{
 					name: "LazyBind",
 					prop: "LazyBindOff",
-					off:  uint64(real.LazyBindOff),
-					size: uint64(real.LazyBindSize),
+					off:  uint64(realDIO.LazyBindOff),
+					size: uint64(realDIO.LazyBindSize),
 				},
 				{
 					name: "Export",
 					prop: "ExportOff",
-					off:  uint64(real.ExportOff),
-					size: uint64(real.ExportSize),
+					off:  uint64(realDIO.ExportOff),
+					size: uint64(realDIO.ExportSize),
 				},
 			}
 			for _, link := range links {
@@ -225,23 +225,23 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 		}
 	}
 
-	handleSymtab := func(real *macho.Symtab) parseFn {
+	handleSymtab := func(realST *macho.Symtab) parseFn {
 		return func(_block, header *contracts.MemoryBlock) error {
 			// FIXME: assume 64bit
 			symbols := me.addChild(root, &contracts.MemoryBlock{
-				Name:         fmt.Sprintf("Symbols (%d)", real.Nsyms),
-				Address:      uintptr(real.Symoff),
-				Size:         uint64(real.Nsyms) * uint64(unsafe.Sizeof(subcontracts.NList64{})),
-				ParentOffset: uint64(real.Symoff) - uint64(root.Address),
+				Name:         fmt.Sprintf("Symbols (%d)", realST.Nsyms),
+				Address:      uintptr(realST.Symoff),
+				Size:         uint64(realST.Nsyms) * uint64(unsafe.Sizeof(subcontracts.NList64{})),
+				ParentOffset: uint64(realST.Symoff) - uint64(root.Address),
 			})
 			context.symbols = symbols
-			context.symtab = real
+			context.symtab = realST
 			err := parsingutils.AddLinkWithBlock(header, "Symoff", symbols, "points to")
 			if err != nil {
 				return err
 			}
 			offset := uint64(0)
-			for i, sym := range real.Syms {
+			for i, sym := range realST.Syms {
 				// FIXME: assume 64bit
 				nlist := subcontracts.NList64{
 					NStrx:  0, // FIXME: unsupported because of the way they parse symbols
@@ -261,17 +261,17 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 			}
 			strings := me.addChild(root, &contracts.MemoryBlock{
 				Name:         "Symbol Strings",
-				Address:      uintptr(real.Stroff),
-				Size:         uint64(real.Strsize),
-				ParentOffset: uint64(real.Stroff) - uint64(root.Address),
+				Address:      uintptr(realST.Stroff),
+				Size:         uint64(realST.Strsize),
+				ParentOffset: uint64(realST.Stroff) - uint64(root.Address),
 			})
 			err = parsingutils.AddLinkWithBlock(header, "Stroff", strings, "points to")
 			if err != nil {
 				return err
 			}
-			for i := 0; i < int(real.Strsize); {
+			for i := 0; i < int(realST.Strsize); {
 				addr := strings.Address + uintptr(i)
-				str := parsingutils.ReadCString(io.NewSectionReader(context.header, int64(addr), int64(real.Strsize)-int64(i)))
+				str := parsingutils.ReadCString(io.NewSectionReader(context.header, int64(addr), int64(realST.Strsize)-int64(i)))
 				strBlock := me.addChild(strings, &contracts.MemoryBlock{
 					Name:         fmt.Sprintf("%q", str),
 					Address:      addr,
@@ -284,7 +284,7 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 		}
 	}
 
-	handleDSymtab := func(real *macho.Dysymtab) parseFn {
+	handleDSymtab := func(realDST *macho.Dysymtab) parseFn {
 		return func(block, header *contracts.MemoryBlock) error {
 			if context.symbols == nil {
 				return fmt.Errorf("no symbols found")
@@ -298,20 +298,20 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 				{
 					name: "Local Symbols",
 					prop: "Ilocalsym",
-					off:  uint64(real.Ilocalsym),
-					len:  uint64(real.Nlocalsym),
+					off:  uint64(realDST.Ilocalsym),
+					len:  uint64(realDST.Nlocalsym),
 				},
 				{
 					name: "External Symbols",
 					prop: "Iextdefsym",
-					off:  uint64(real.Iextdefsym),
-					len:  uint64(real.Nextdefsym),
+					off:  uint64(realDST.Iextdefsym),
+					len:  uint64(realDST.Nextdefsym),
 				},
 				{
 					name: "Undefined Symbols",
 					prop: "Iundefsym",
-					off:  uint64(real.Iundefsym),
-					len:  uint64(real.Nundefsym),
+					off:  uint64(realDST.Iundefsym),
+					len:  uint64(realDST.Nundefsym),
 				},
 			}
 			for _, isym := range isyms {
@@ -341,44 +341,44 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 				{
 					name:   "TOC",
 					prop:   "Tocoffset",
-					off:    uint64(real.Tocoffset),
-					len:    uint64(real.Ntoc),
+					off:    uint64(realDST.Tocoffset),
+					len:    uint64(realDST.Ntoc),
 					sizeOf: uint64(unsafe.Sizeof(types.DylibTableOfContents{})),
 				},
 				{
 					name: "Module Table",
 					prop: "Modtaboff",
-					off:  uint64(real.Modtaboff),
-					len:  uint64(real.Nmodtab),
+					off:  uint64(realDST.Modtaboff),
+					len:  uint64(realDST.Nmodtab),
 					// FIXME: assume 64bit
 					sizeOf: uint64(unsafe.Sizeof(types.DylibModule64{})),
 				},
 				{
 					name:   "External Relocations Table",
 					prop:   "Extrefsymoff",
-					off:    uint64(real.Extrefsymoff),
-					len:    uint64(real.Nextrefsyms),
+					off:    uint64(realDST.Extrefsymoff),
+					len:    uint64(realDST.Nextrefsyms),
 					sizeOf: uint64(unsafe.Sizeof(types.DylibReference(0))),
 				},
 				{
 					name:   "Indirect Symbols Table",
 					prop:   "Indirectsymoff",
-					off:    uint64(real.Indirectsymoff),
-					len:    uint64(real.Nindirectsyms),
+					off:    uint64(realDST.Indirectsymoff),
+					len:    uint64(realDST.Nindirectsyms),
 					sizeOf: uint64(unsafe.Sizeof(types.DylibReference(0))),
 				},
 				{
 					name:   "External Symbols Table",
 					prop:   "Extreloff",
-					off:    uint64(real.Extreloff),
-					len:    uint64(real.Nextrel),
+					off:    uint64(realDST.Extreloff),
+					len:    uint64(realDST.Nextrel),
 					sizeOf: uint64(unsafe.Sizeof(types.Reloc{})),
 				},
 				{
 					name:   "Local Symbols Table",
 					prop:   "Locreloff",
-					off:    uint64(real.Locreloff),
-					len:    uint64(real.Nlocrel),
+					off:    uint64(realDST.Locreloff),
+					len:    uint64(realDST.Nlocrel),
 					sizeOf: uint64(unsafe.Sizeof(types.Reloc{})),
 				},
 			}
@@ -398,8 +398,8 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 				}
 				switch entries.prop {
 				case "Indirectsymoff":
-					names := make([]string, real.Nindirectsyms)
-					for i, sym := range real.IndirectSyms {
+					names := make([]string, realDST.Nindirectsyms)
+					for i, sym := range realDST.IndirectSyms {
 						entry := me.addChild(segment, &contracts.MemoryBlock{
 							Name:         fmt.Sprintf("Indirect Symbol (%d)", i+1),
 							Address:      uintptr(entries.off) + uintptr(i)*uintptr(entries.sizeOf),
@@ -422,8 +422,8 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 						indirectIndex := sect.Reserved1
 						sizeOfStub := uint64(sect.Reserved2)
 						numberOfStubs := sect.Size / sizeOfStub
-						if uint64(indirectIndex)+numberOfStubs > uint64(real.Nindirectsyms) {
-							return fmt.Errorf("invalid indirect symbol index in %s (%d vs %d)", sect.Name, uint64(indirectIndex)+numberOfStubs, real.Nindirectsyms)
+						if uint64(indirectIndex)+numberOfStubs > uint64(realDST.Nindirectsyms) {
+							return fmt.Errorf("invalid indirect symbol index in %s (%d vs %d)", sect.Name, uint64(indirectIndex)+numberOfStubs, realDST.Nindirectsyms)
 						}
 						for i := range numberOfStubs {
 							index := indirectIndex + uint32(i)
@@ -440,8 +440,8 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 						indirectIndex := sect.Reserved1
 						pointerSize := uint64(8) // TODO: assume 64bit
 						numberOfPointers := sect.Size / uint64(pointerSize)
-						if uint64(indirectIndex)+numberOfPointers > uint64(real.Nindirectsyms) {
-							return fmt.Errorf("invalid indirect symbol index in %s (%d vs %d)", sect.Name, uint64(indirectIndex)+numberOfPointers, real.Nindirectsyms)
+						if uint64(indirectIndex)+numberOfPointers > uint64(realDST.Nindirectsyms) {
+							return fmt.Errorf("invalid indirect symbol index in %s (%d vs %d)", sect.Name, uint64(indirectIndex)+numberOfPointers, realDST.Nindirectsyms)
 						}
 						for i := range numberOfPointers {
 							index := indirectIndex + uint32(i)
@@ -465,216 +465,216 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 	case types.LC_REQ_DYLD:
 		return nil, fmt.Errorf("binary contains LC_REQ_DYLD which is not supported")
 	case types.LC_SEGMENT, types.LC_SEGMENT_64:
-		real := cmd.(*macho.Segment)
-		data = real.SegmentHeader
+		realSeg := cmd.(*macho.Segment)
+		data = realSeg.SegmentHeader
 		headerSize = uint64(unsafe.Sizeof(types.Segment32{}))
-		if real.Command() == types.LC_SEGMENT_64 {
+		if realSeg.Command() == types.LC_SEGMENT_64 {
 			headerSize = uint64(unsafe.Sizeof(types.Segment64{}))
 		}
-		postParsing = handleSegment(real, headerSize)
+		postParsing = handleSegment(realSeg, headerSize)
 		banned = append(banned, "Firstsect") // FIXME: header is badly defined
 	case types.LC_SYMTAB:
-		real := cmd.(*macho.Symtab)
-		data = real.SymtabCmd
-		postParsing = handleSymtab(real)
+		realSeg := cmd.(*macho.Symtab)
+		data = realSeg.SymtabCmd
+		postParsing = handleSymtab(realSeg)
 	case types.LC_SYMSEG:
-		real := cmd.(*macho.SymSeg)
-		data = real.SymsegCmd
+		realSeg := cmd.(*macho.SymSeg)
+		data = realSeg.SymsegCmd
 		postParsing = handleObsolete
 	case types.LC_THREAD:
-		real := cmd.(*macho.Thread)
-		data = real.ThreadCmd
-		postParsing = handleThread(real.Threads)
+		realSeg := cmd.(*macho.Thread)
+		data = realSeg.ThreadCmd
+		postParsing = handleThread(realSeg.Threads)
 	case types.LC_UNIXTHREAD:
-		real := cmd.(*macho.UnixThread)
-		data = real.ThreadCmd
-		postParsing = handleThread(real.Threads)
+		realSeg := cmd.(*macho.UnixThread)
+		data = realSeg.ThreadCmd
+		postParsing = handleThread(realSeg.Threads)
 	case types.LC_LOADFVMLIB:
-		real := cmd.(*macho.LoadFvmlib)
-		data = *real // .LoadFvmLibCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
+		realSeg := cmd.(*macho.LoadFvmlib)
+		data = *realSeg // .LoadFvmLibCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
 		headerSize = size
 		postParsing = handleObsolete
 	case types.LC_IDFVMLIB:
-		real := cmd.(*macho.IDFvmlib)
-		data = *real // .LoadFvmLibCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
+		realSeg := cmd.(*macho.IDFvmlib)
+		data = *realSeg // .LoadFvmLibCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
 		headerSize = size
 		postParsing = handleObsolete
 	case types.LC_IDENT:
-		real := cmd.(*macho.Ident)
-		data = real.IdentCmd
+		realSeg := cmd.(*macho.Ident)
+		data = realSeg.IdentCmd
 		postParsing = handleObsolete
 	case types.LC_FVMFILE:
-		real := cmd.(*macho.FvmFile)
-		data = *real // .FvmFileCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
+		realSeg := cmd.(*macho.FvmFile)
+		data = *realSeg // .FvmFileCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
 		headerSize = size
 		postParsing = handlePrivate
 	case types.LC_PREPAGE:
-		real := cmd.(*macho.Prepage)
-		data = real.PrePageCmd
+		realSeg := cmd.(*macho.Prepage)
+		data = realSeg.PrePageCmd
 		postParsing = handlePrivate
 	case types.LC_DYSYMTAB:
-		real := cmd.(*macho.Dysymtab)
-		data = real.DysymtabCmd
-		postParsing = handleDSymtab(real)
+		realSeg := cmd.(*macho.Dysymtab)
+		data = realSeg.DysymtabCmd
+		postParsing = handleDSymtab(realSeg)
 	case types.LC_LOAD_DYLIB:
-		real := cmd.(*macho.LoadDylib)
-		data = *real // .DylibCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
+		realSeg := cmd.(*macho.LoadDylib)
+		data = *realSeg // .DylibCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
 		headerSize = size
 	case types.LC_ID_DYLIB:
-		real := cmd.(*macho.IDDylib)
-		data = *real // .DylibCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
+		realSeg := cmd.(*macho.IDDylib)
+		data = *realSeg // .DylibCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
 		headerSize = size
 	case types.LC_LOAD_DYLINKER:
-		real := cmd.(*macho.LoadDylinker)
-		data = *real // .DylinkerCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
+		realSeg := cmd.(*macho.LoadDylinker)
+		data = *realSeg // .DylinkerCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
 		headerSize = size
 	case types.LC_ID_DYLINKER:
-		real := cmd.(*macho.DylinkerID)
-		data = *real // .DylinkerCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
+		realSeg := cmd.(*macho.DylinkerID)
+		data = *realSeg // .DylinkerCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
 		headerSize = size
 	case types.LC_PREBOUND_DYLIB:
-		real := cmd.(*macho.PreboundDylib)
-		data = *real // .PreboundDylibCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
+		realSeg := cmd.(*macho.PreboundDylib)
+		data = *realSeg // .PreboundDylibCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
 		headerSize = size
 		postParsing = handleUnused
 	case types.LC_ROUTINES:
-		real := cmd.(*macho.Routines)
-		data = real.RoutinesCmd
+		realSeg := cmd.(*macho.Routines)
+		data = realSeg.RoutinesCmd
 		postParsing = handleUnused
 	case types.LC_SUB_FRAMEWORK:
-		real := cmd.(*macho.SubFramework)
-		data = *real // .SubFrameworkCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
+		realSeg := cmd.(*macho.SubFramework)
+		data = *realSeg // .SubFrameworkCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
 		headerSize = size
 	case types.LC_SUB_UMBRELLA:
-		real := cmd.(*macho.SubUmbrella)
-		data = *real // .SubUmbrellaCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
+		realSeg := cmd.(*macho.SubUmbrella)
+		data = *realSeg // .SubUmbrellaCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
 		headerSize = size
 	case types.LC_SUB_CLIENT:
-		real := cmd.(*macho.SubClient)
-		data = *real // .SubClientCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
+		realSeg := cmd.(*macho.SubClient)
+		data = *realSeg // .SubClientCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
 		headerSize = size
 	case types.LC_SUB_LIBRARY:
-		real := cmd.(*macho.SubLibrary)
-		data = *real // .SubLibraryCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
+		realSeg := cmd.(*macho.SubLibrary)
+		data = *realSeg // .SubLibraryCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
 		headerSize = size
 	case types.LC_TWOLEVEL_HINTS:
-		real := cmd.(*macho.TwolevelHints)
-		data = real.TwolevelHintsCmd
+		realSeg := cmd.(*macho.TwolevelHints)
+		data = realSeg.TwolevelHintsCmd
 		postParsing = handleUnused
 	case types.LC_PREBIND_CKSUM:
-		real := cmd.(*macho.PrebindCheckSum)
-		data = real.PrebindCksumCmd
+		realSeg := cmd.(*macho.PrebindCheckSum)
+		data = realSeg.PrebindCksumCmd
 		postParsing = handleUnused
 	case types.LC_LOAD_WEAK_DYLIB:
-		real := cmd.(*macho.WeakDylib)
-		data = *real // .DylibCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
+		realSeg := cmd.(*macho.WeakDylib)
+		data = *realSeg // .DylibCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
 		headerSize = size
 	case types.LC_ROUTINES_64:
-		real := cmd.(*macho.Routines64)
-		data = real.Routines64Cmd
+		realSeg := cmd.(*macho.Routines64)
+		data = realSeg.Routines64Cmd
 		postParsing = handleUnused
 	case types.LC_UUID:
-		real := cmd.(*macho.UUID)
-		data = real.UUIDCmd
+		realSeg := cmd.(*macho.UUID)
+		data = realSeg.UUIDCmd
 	case types.LC_RPATH:
-		real := cmd.(*macho.Rpath)
-		data = *real // .RpathCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
+		realSeg := cmd.(*macho.Rpath)
+		data = *realSeg // .RpathCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
 		headerSize = size
 	case types.LC_CODE_SIGNATURE:
-		real := cmd.(*macho.CodeSignature)
-		data = real.CodeSignatureCmd
-		postParsing = handleLEData(types.LinkEditDataCmd(real.CodeSignatureCmd))
+		realSeg := cmd.(*macho.CodeSignature)
+		data = realSeg.CodeSignatureCmd
+		postParsing = handleLEData(types.LinkEditDataCmd(realSeg.CodeSignatureCmd))
 	case types.LC_SEGMENT_SPLIT_INFO:
-		real := cmd.(*macho.SplitInfo)
-		data = real.SegmentSplitInfoCmd
-		postParsing = handleLEData(types.LinkEditDataCmd(real.SegmentSplitInfoCmd))
+		realSeg := cmd.(*macho.SplitInfo)
+		data = realSeg.SegmentSplitInfoCmd
+		postParsing = handleLEData(types.LinkEditDataCmd(realSeg.SegmentSplitInfoCmd))
 	case types.LC_REEXPORT_DYLIB:
-		real := cmd.(*macho.ReExportDylib)
-		data = *real // .DylibCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
+		realSeg := cmd.(*macho.ReExportDylib)
+		data = *realSeg // .DylibCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
 		headerSize = size
 	case types.LC_LAZY_LOAD_DYLIB:
-		real := cmd.(*macho.LazyLoadDylib)
-		data = *real // .DylibCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
+		realSeg := cmd.(*macho.LazyLoadDylib)
+		data = *realSeg // .DylibCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
 		headerSize = size
 	case types.LC_ENCRYPTION_INFO:
-		real := cmd.(*macho.EncryptionInfo)
-		data = real.EncryptionInfoCmd
+		realSeg := cmd.(*macho.EncryptionInfo)
+		data = realSeg.EncryptionInfoCmd
 		postParsing = handleUnused
 	case types.LC_DYLD_INFO:
-		real := cmd.(*macho.DyldInfo)
-		data = real.DyldInfoCmd
+		realSeg := cmd.(*macho.DyldInfo)
+		data = realSeg.DyldInfoCmd
 		postParsing = handleUnused
 	case types.LC_DYLD_INFO_ONLY:
-		real := cmd.(*macho.DyldInfoOnly)
-		data = real.DyldInfoCmd
-		postParsing = handleDYLDInfo(real)
+		realSeg := cmd.(*macho.DyldInfoOnly)
+		data = realSeg.DyldInfoCmd
+		postParsing = handleDYLDInfo(realSeg)
 	case types.LC_LOAD_UPWARD_DYLIB:
-		real := cmd.(*macho.UpwardDylib)
-		data = *real // .DylibCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
+		realSeg := cmd.(*macho.UpwardDylib)
+		data = *realSeg // .DylibCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
 		headerSize = size
 	case types.LC_VERSION_MIN_MACOSX, types.LC_VERSION_MIN_IPHONEOS, types.LC_VERSION_MIN_TVOS, types.LC_VERSION_MIN_WATCHOS:
-		real := cmd.(*macho.VersionMin)
-		data = real.VersionMinCmd
+		realSeg := cmd.(*macho.VersionMin)
+		data = realSeg.VersionMinCmd
 	case types.LC_FUNCTION_STARTS:
-		real := cmd.(*macho.FunctionStarts)
-		data = real.LinkEditDataCmd
-		postParsing = handleLEData(real.LinkEditDataCmd)
+		realSeg := cmd.(*macho.FunctionStarts)
+		data = realSeg.LinkEditDataCmd
+		postParsing = handleLEData(realSeg.LinkEditDataCmd)
 	case types.LC_DYLD_ENVIRONMENT:
-		real := cmd.(*macho.DyldEnvironment)
-		data = *real // .DylinkerCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
+		realSeg := cmd.(*macho.DyldEnvironment)
+		data = *realSeg // .DylinkerCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
 		headerSize = size
 	case types.LC_MAIN:
-		real := cmd.(*macho.EntryPoint)
-		data = real.EntryPointCmd
+		realSeg := cmd.(*macho.EntryPoint)
+		data = realSeg.EntryPointCmd
 		postParsing = func(block, header *contracts.MemoryBlock) error {
 			if context.text == nil {
 				return fmt.Errorf("no __TEXT segment found")
 			}
-			return parsingutils.AddLinkWithAddr(header, "EntryOffset", "points to", context.text.Address+uintptr(real.EntryOffset))
+			return parsingutils.AddLinkWithAddr(header, "EntryOffset", "points to", context.text.Address+uintptr(realSeg.EntryOffset))
 		}
 	case types.LC_DATA_IN_CODE:
-		real := cmd.(*macho.DataInCode)
-		data = real.DataInCodeCmd
-		postParsing = handleLEData(types.LinkEditDataCmd(real.DataInCodeCmd))
+		realSeg := cmd.(*macho.DataInCode)
+		data = realSeg.DataInCodeCmd
+		postParsing = handleLEData(types.LinkEditDataCmd(realSeg.DataInCodeCmd))
 	case types.LC_SOURCE_VERSION:
-		real := cmd.(*macho.SourceVersion)
-		data = real.SourceVersionCmd
+		realSeg := cmd.(*macho.SourceVersion)
+		data = realSeg.SourceVersionCmd
 	case types.LC_DYLIB_CODE_SIGN_DRS:
-		real := cmd.(*macho.DylibCodeSignDrs)
-		data = real.LinkEditDataCmd
-		postParsing = handleLEData(real.LinkEditDataCmd)
+		realSeg := cmd.(*macho.DylibCodeSignDrs)
+		data = realSeg.LinkEditDataCmd
+		postParsing = handleLEData(realSeg.LinkEditDataCmd)
 	case types.LC_ENCRYPTION_INFO_64:
-		real := cmd.(*macho.EncryptionInfo64)
-		data = real.EncryptionInfo64Cmd
+		realSeg := cmd.(*macho.EncryptionInfo64)
+		data = realSeg.EncryptionInfo64Cmd
 		postParsing = handleUnused
 	case types.LC_LINKER_OPTION:
-		real := cmd.(*macho.LinkerOption)
-		data = *real // .LinkerOptionCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
+		realSeg := cmd.(*macho.LinkerOption)
+		data = *realSeg // .LinkerOptionCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
 		headerSize = size
 		postParsing = handleUnused
 	case types.LC_LINKER_OPTIMIZATION_HINT:
-		real := cmd.(*macho.LinkerOptimizationHint)
-		data = real.LinkEditDataCmd
-		postParsing = handleLEData(real.LinkEditDataCmd)
+		realSeg := cmd.(*macho.LinkerOptimizationHint)
+		data = realSeg.LinkEditDataCmd
+		postParsing = handleLEData(realSeg.LinkEditDataCmd)
 	case types.LC_NOTE:
-		real := cmd.(*macho.Note)
-		data = real.NoteCmd
+		realSeg := cmd.(*macho.Note)
+		data = realSeg.NoteCmd
 		postParsing = handleUnused
 	case types.LC_BUILD_VERSION:
-		real := cmd.(*macho.BuildVersion)
-		data = *real // .BuildVersionCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
+		realSeg := cmd.(*macho.BuildVersion)
+		data = *realSeg // .BuildVersionCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
 		headerSize = size
 	case types.LC_DYLD_EXPORTS_TRIE:
-		real := cmd.(*macho.DyldExportsTrie)
-		data = real.LinkEditDataCmd
-		postParsing = handleLEData(real.LinkEditDataCmd)
+		realSeg := cmd.(*macho.DyldExportsTrie)
+		data = realSeg.LinkEditDataCmd
+		postParsing = handleLEData(realSeg.LinkEditDataCmd)
 	case types.LC_DYLD_CHAINED_FIXUPS:
-		real := cmd.(*macho.DyldChainedFixups)
-		data = real.LinkEditDataCmd
-		postParsing = handleLEData(real.LinkEditDataCmd)
+		realSeg := cmd.(*macho.DyldChainedFixups)
+		data = realSeg.LinkEditDataCmd
+		postParsing = handleLEData(realSeg.LinkEditDataCmd)
 	case types.LC_FILESET_ENTRY:
-		real := cmd.(*macho.FilesetEntry)
-		data = *real // .FilesetEntryCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
+		realSeg := cmd.(*macho.FilesetEntry)
+		data = *realSeg // .FilesetEntryCmd // FIXME: technically should use the sub struct but it's nice to get the Name for free
 		headerSize = size
 		postParsing = handleUnused
 	default:

@@ -23,11 +23,8 @@ func LessThan(a, b *contracts.MemoryBlock) bool {
 	for _, c := range criteria {
 		if c == 0 {
 			continue
-		} else if c < 0 {
-			return true
-		} else {
-			return false
 		}
+		return c < 0
 	}
 	return false
 }
