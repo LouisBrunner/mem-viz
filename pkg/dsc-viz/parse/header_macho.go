@@ -261,12 +261,12 @@ func (me *parser) getMachOLoadCommandParser(frame *blockFrame, baseCommand subco
 
 	// FIXME: unused
 	handleUnused := func(frame *blockFrame, path string, base, after subcontracts.Address, linkEdit *linkEditData) (*contracts.MemoryBlock, error) {
-		return nil, fmt.Errorf("unusued load command (%s), currently unsupported", subcontracts.LC2String(baseCommand.Cmd))
+		return nil, fmt.Errorf("unused load command (%s), currently unsupported", subcontracts.LC2String(baseCommand.Cmd))
 	}
 
 	// FIXME: unused but have a common struct
 	handleUnusedExtra := func(block *contracts.MemoryBlock) error {
-		return fmt.Errorf("unusued load command (%s), currently unsupported", block.Name)
+		return fmt.Errorf("unused load command (%s), currently unsupported", block.Name)
 	}
 
 	switch baseCommand.Cmd {

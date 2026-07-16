@@ -81,14 +81,14 @@ const (
 const (
 	MH_NOUNDEFS                      = 0x1        // the object file has no undefined references
 	MH_INCRLINK                      = 0x2        // the object file is the output of an incremental link against a base file and can't be link edited again
-	MH_DYLDLINK                      = 0x4        // the object file is input for the dynamic linker and can't be staticly link edited again
+	MH_DYLDLINK                      = 0x4        // the object file is input for the dynamic linker and can't be statically link edited again
 	MH_BINDATLOAD                    = 0x8        // the object file's undefined references are bound by the dynamic linker when loaded.
 	MH_PREBOUND                      = 0x10       // the file has its dynamic undefined references prebound.
 	MH_SPLIT_SEGS                    = 0x20       // the file has its read-only and read-write segments split
 	MH_LAZY_INIT                     = 0x40       // the shared library init routine is to be run lazily via catching memory faults to its writeable segments (obsolete)
 	MH_TWOLEVEL                      = 0x80       // the image is using two-level name space bindings
 	MH_FORCE_FLAT                    = 0x100      // the executable is forcing all images to use flat name space bindings
-	MH_NOMULTIDEFS                   = 0x200      // this umbrella guarantees no multiple defintions of symbols in its sub-images so the two-level namespace hints can always be used.
+	MH_NOMULTIDEFS                   = 0x200      // this umbrella guarantees no multiple definitions of symbols in its sub-images so the two-level namespace hints can always be used.
 	MH_NOFIXPREBINDING               = 0x400      // do not have dyld notify the prebinding agent about this executable
 	MH_PREBINDABLE                   = 0x800      // the binary is not prebound but can have its prebinding redone. only used when MH_PREBOUND is not set.
 	MH_ALLMODSBOUND                  = 0x1000     // indicates that this binary binds to all two-level namespace modules of its dependent libraries. only used when MH_PREBINDABLE and MH_TWOLEVEL are both set.
@@ -530,7 +530,7 @@ const (
 	SEG_LINKEDIT      = "__LINKEDIT"      // the segment containing all structs created and maintained by the link editor.  Created with -seglinkedit option to ld(1) for MH_EXECUTE and FVMLIB file types only
 	SEG_LINKINFO      = "__LINKINFO"      // the segment overlapping with linkedit containing linking information
 	SEG_UNIXSTACK     = "__UNIXSTACK"     // the unix stack segment
-	SEG_IMPORT        = "__IMPORT"        // the segment for the self (dyld) modifing code stubs that has read, write and execute permissions
+	SEG_IMPORT        = "__IMPORT"        // the segment for the self (dyld) modifying code stubs that has read, write and execute permissions
 )
 
 // Fixed virtual memory shared libraries are identified by two things.  The
@@ -554,7 +554,7 @@ type FVMLibCommand struct {
 	FVMLib         // the library identification
 }
 
-// Dynamicly linked shared libraries are identified by two things.  The
+// Dynamically linked shared libraries are identified by two things.  The
 // pathname (the name of the library as found for execution), and the
 // compatibility version number.  The pathname must match and the compatibility
 // number in the user of the library must be greater than or equal to the
@@ -609,7 +609,7 @@ type SubClientCommand struct {
 // A dynamically linked shared library may be a sub_umbrella of an umbrella
 // framework.  If so it will be linked with "-sub_umbrella umbrella_name" where
 // Where "umbrella_name" is the name of the sub_umbrella framework.  When
-// staticly linking when -twolevel_namespace is in effect a twolevel namespace
+// statically linking when -twolevel_namespace is in effect a twolevel namespace
 // umbrella framework will only cause its subframeworks and those frameworks
 // listed as sub_umbrella frameworks to be implicited linked in.  Any other
 // dependent dynamic libraries will not be linked it when -twolevel_namespace
@@ -626,7 +626,7 @@ type SubUmbrellaCommand struct {
 // A dynamically linked shared library may be a sub_library of another shared
 // library.  If so it will be linked with "-sub_library library_name" where
 // Where "library_name" is the name of the sub_library shared library.  When
-// staticly linking when -twolevel_namespace is in effect a twolevel namespace
+// statically linking when -twolevel_namespace is in effect a twolevel namespace
 // shared library will only cause its subframeworks and those frameworks
 // listed as sub_umbrella frameworks and libraries listed as sub_libraries to
 // be implicited linked in.  Any other dependent dynamic libraries will not be
@@ -937,14 +937,14 @@ type DYSymTabCommand struct {
 
 	// All the local relocation entries are grouped together (they are not
 	// grouped by their module since they are only used if the object is moved
-	// from it staticly link edited address).
+	// from it statically link edited address).
 
 	LocRelOff LinkEditOffset `struc:"little"` // offset to local relocation entries
 	NLocRel   uint32         `struc:"little"` // number of local relocation entries
 }
 
 // An indirect symbol table entry is simply a 32bit index into the symbol table
-// to the symbol that the pointer or stub is refering to.  Unless it is for a
+// to the symbol that the pointer or stub is referring to.  Unless it is for a
 // non-lazy symbol pointer section for a defined symbol which strip(1) as
 // removed.  In which case it has the value INDIRECT_SYMBOL_LOCAL.  If the
 // symbol was also absolute INDIRECT_SYMBOL_ABS is or'ed with that.
@@ -1121,7 +1121,7 @@ type EncryptionInfoCommand struct {
 	CmdSize   uint32 `struc:"little"` // sizeof(struct encryption_info_command)
 	CryptOff  uint32 `struc:"little"` // file offset of encrypted range
 	CryptSize uint32 `struc:"little"` // file size of encrypted range
-	CryptID   uint32 `struc:"little"` // which enryption system, 0 means not-encrypted yet
+	CryptID   uint32 `struc:"little"` // which encryption system, 0 means not-encrypted yet
 }
 
 // The encryption_info_command_64 contains the file offset and size of an
@@ -1131,7 +1131,7 @@ type EncryptionInfoCommand64 struct {
 	CmdSize   uint32 `struc:"little"` // sizeof(struct encryption_info_command_64)
 	CryptOff  uint32 `struc:"little"` // file offset of encrypted range
 	CryptSize uint32 `struc:"little"` // file size of encrypted range
-	CryptID   uint32 `struc:"little"` // which enryption system, 0 means not-encrypted yet
+	CryptID   uint32 `struc:"little"` // which encryption system, 0 means not-encrypted yet
 	Pad       uint32 `struc:"little"` // padding to make this struct's size a multiple of 8 bytes
 }
 
@@ -1174,7 +1174,7 @@ const (
 	PLATFORM_WATCHOSSIMULATOR = 9
 	PLATFORM_DRIVERKIT        = 10
 	PLATFORM_MAX              = PLATFORM_DRIVERKIT
-	// Addition of simulated platfrom also needs to update proc_is_simulated()
+	// Addition of simulated platform also needs to update proc_is_simulated()
 )
 
 // Known values for the tool field above.
@@ -1215,7 +1215,7 @@ type DYLDInfoCommand struct {
 	//    <seg-index, seg-offset, type, symbol-library-ordinal, symbol-name, addend>
 	// The opcodes are a compressed way to encode the table by only
 	// encoding when a column changes.  In addition simple patterns
-	// like for runs of pointers initialzed to the same value can be
+	// like for runs of pointers initialized to the same value can be
 	// encoded in a few bytes.
 
 	BindOff  LinkEditOffset `struc:"little"` // file offset to binding info

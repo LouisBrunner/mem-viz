@@ -10,7 +10,7 @@ import (
 
 func main() {
 	cli.Main("mem-viz", nil, cli.Worker[interface{}]{
-		GetMemory: func(logger *logrus.Logger, params interface{}) (*contracts.MemoryBlock, error) {
+		GetMemory: func(_ *logrus.Logger, params interface{}) (*contracts.MemoryBlock, error) {
 			return nil, fmt.Errorf("missing from flag: %s", cli.FromCommonSourcesHelp)
 		},
 	})

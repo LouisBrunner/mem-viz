@@ -485,7 +485,7 @@ type DYLDCacheHeaderV3 struct {
 	DynamicDataMaxSize uint64            `struc:"big"`    // maximum size of space reserved from dynamic data
 }
 
-// Same deal as for V1 vs V2, V3 just superseeds V2 without having a dedicated struct
+// Same deal as for V1 vs V2, V3 just supersedes V2 without having a dedicated struct
 func (me DYLDCacheHeaderV3) V2() (*DYLDCacheHeaderV2, bool) {
 	isV2 := uint32(me.MappingOffset) <= uint32(DYLDCacheHeaderV3CacheSubTypeOffset)
 	if !isV2 {
@@ -563,7 +563,7 @@ func (me DYLDCachePatchableLocationV1BitField) String() string {
 // Patches can be different kinds.  This lives in the high nibble of the exportNameOffset,
 // so we restrict these to 4-bits
 const (
-	// Just a normal patch. Isn't one of ther other kinds
+	// Just a normal patch. Isn't one of there other kinds
 	PATCH_KIND_REGULAR = 0x0
 	// One of { void* isa, uintptr_t }, from CF
 	PATCH_KIND_CFOBJ2 = 0x1

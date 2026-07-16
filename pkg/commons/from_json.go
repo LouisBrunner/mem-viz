@@ -25,7 +25,7 @@ func FromJSONFile(logger *logrus.Logger, filename string) (*contracts.MemoryBloc
 	return FromJSONText(logger, string(content))
 }
 
-func FromJSONText(logger *logrus.Logger, text string) (*contracts.MemoryBlock, error) {
+func FromJSONText(_ *logrus.Logger, text string) (*contracts.MemoryBlock, error) {
 	var mb contracts.MemoryBlock
 	err := json.Unmarshal([]byte(text), &mb)
 	if err != nil {

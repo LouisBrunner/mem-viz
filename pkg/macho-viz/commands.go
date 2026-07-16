@@ -46,7 +46,7 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 
 	// FIXME: unused
 	handleUnused := func(block, header *contracts.MemoryBlock) error {
-		return fmt.Errorf("unusued load command (%s), currently unsupported", block.Name)
+		return fmt.Errorf("unused load command (%s), currently unsupported", block.Name)
 	}
 
 	handleSegment := func(real *macho.Segment, headerSize uint64) parseFn {
