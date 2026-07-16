@@ -62,10 +62,10 @@ func cacheFromMemory(logger *logrus.Logger, pointer uintptr) (_ *fromMemoryCache
 
 type fromMemoryProcessor struct{}
 
-func (me fromMemoryProcessor) CacheFromEntryV2(logger *logrus.Logger, main *fromMemoryCache, i int64, entry contracts.DYLDSubcacheEntryV2) (contracts.Cache, error) {
+func (me fromMemoryProcessor) CacheFromEntryV2(logger *logrus.Logger, main *fromMemoryCache, _i int64, entry contracts.DYLDSubcacheEntryV2) (contracts.Cache, error) {
 	return cacheFromMemory(logger, main.pointer+uintptr(entry.CacheVmOffset))
 }
 
-func (me fromMemoryProcessor) CacheFromEntryV1(logger *logrus.Logger, main *fromMemoryCache, i int64, entry contracts.DYLDSubcacheEntryV1) (contracts.Cache, error) {
+func (me fromMemoryProcessor) CacheFromEntryV1(logger *logrus.Logger, main *fromMemoryCache, _i int64, entry contracts.DYLDSubcacheEntryV1) (contracts.Cache, error) {
 	return cacheFromMemory(logger, main.pointer+uintptr(entry.CacheVmOffset))
 }

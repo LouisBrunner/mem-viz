@@ -10,7 +10,7 @@ import (
 	subcontracts "github.com/LouisBrunner/mem-viz/pkg/dsc-viz/contracts"
 )
 
-func (me *parser) parsePatchInfo(frame *blockFrame, header subcontracts.DYLDCacheHeaderV3) error {
+func (me *parser) parsePatchInfo(frame *blockFrame, header subcontracts.DYLDCacheHeaderV3) error { //nolint:gocyclo
 	if header.PatchInfoAddr == 0 {
 		return nil
 	}

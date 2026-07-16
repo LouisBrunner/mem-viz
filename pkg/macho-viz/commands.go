@@ -25,7 +25,7 @@ type contextData struct {
 
 type parseFn func(block, header *contracts.MemoryBlock) error
 
-func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd macho.Load, offset uint64, context *contextData) (*contracts.MemoryBlock, error) {
+func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd macho.Load, offset uint64, context *contextData) (*contracts.MemoryBlock, error) { //nolint:gocyclo
 	var data interface{}
 	banned := []string{
 		"LoadBytes",
@@ -35,17 +35,17 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 	headerSize := uint64(0)
 
 	// FIXME: untestable
-	handleObsolete := func(block, header *contracts.MemoryBlock) error {
+	handleObsolete := func(block, _header *contracts.MemoryBlock) error {
 		return fmt.Errorf("obsolete load command (%s), unsupported", block.Name)
 	}
 
 	// FIXME: untestable AND difficult to find
-	handlePrivate := func(block, header *contracts.MemoryBlock) error {
+	handlePrivate := func(block, _header *contracts.MemoryBlock) error {
 		return fmt.Errorf("private load command (%s), unsupported", block.Name)
 	}
 
 	// FIXME: unused
-	handleUnused := func(block, header *contracts.MemoryBlock) error {
+	handleUnused := func(block, _header *contracts.MemoryBlock) error {
 		return fmt.Errorf("unused load command (%s), currently unsupported", block.Name)
 	}
 
@@ -149,7 +149,7 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 	}
 
 	handleLEData := func(data types.LinkEditDataCmd) parseFn {
-		return func(block, header *contracts.MemoryBlock) error {
+		return func(_block, header *contracts.MemoryBlock) error {
 			if context.linkEdit == nil {
 				return fmt.Errorf("no __LINKEDIT segment found")
 			}
@@ -168,7 +168,7 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 	}
 
 	handleDYLDInfo := func(real *macho.DyldInfoOnly) parseFn {
-		return func(block, header *contracts.MemoryBlock) error {
+		return func(_block, header *contracts.MemoryBlock) error {
 			links := []struct {
 				name string
 				prop string
@@ -226,7 +226,7 @@ func (me *parser) addCommand(root, commands *contracts.MemoryBlock, i int, cmd m
 	}
 
 	handleSymtab := func(real *macho.Symtab) parseFn {
-		return func(block, header *contracts.MemoryBlock) error {
+		return func(_block, header *contracts.MemoryBlock) error {
 			// FIXME: assume 64bit
 			symbols := me.addChild(root, &contracts.MemoryBlock{
 				Name:         fmt.Sprintf("Symbols (%d)", real.Nsyms),

@@ -97,7 +97,7 @@ func (me *parser) forEachMachOLoadCommand(frame *blockFrame, header subcontracts
 
 type machOLoadCommandParser func(frame *blockFrame, path string, base, after subcontracts.Address, linkEdit *linkEditData) (*contracts.MemoryBlock, error)
 
-func (me *parser) getMachOLoadCommandParser(frame *blockFrame, baseCommand subcontracts.LoadCommand) (interface{}, machOLoadCommandParser, error) {
+func (me *parser) getMachOLoadCommandParser(frame *blockFrame, baseCommand subcontracts.LoadCommand) (interface{}, machOLoadCommandParser, error) { //nolint:gocyclo
 	var subCommand interface{}
 	var postParsing machOLoadCommandParser
 
@@ -106,13 +106,13 @@ func (me *parser) getMachOLoadCommandParser(frame *blockFrame, baseCommand subco
 	}
 
 	addString := func(label string, offset *subcontracts.RelativeAddress32) machOLoadCommandParser {
-		return func(frame *blockFrame, path string, base, after subcontracts.Address, linkEdit *linkEditData) (*contracts.MemoryBlock, error) {
+		return func(frame *blockFrame, _path string, base, after subcontracts.Address, linkEdit *linkEditData) (*contracts.MemoryBlock, error) {
 			str := parsingutils.ReadCString(base.GetReader(frame.cache, uint64(*offset), me.slide))
 			return me.createBlobBlock(frame, label, subcontracts.ManualAddress(*offset), "", uint64(len(str)+1), fmt.Sprintf("%s: %s", label, str))
 		}
 	}
 
-	usePostLinkEdit := func(parent *contracts.MemoryBlock, apply func(ple *contracts.MemoryBlock) (*contracts.MemoryBlock, error)) (*contracts.MemoryBlock, error) {
+	usePostLinkEdit := func(_parent *contracts.MemoryBlock, apply func(ple *contracts.MemoryBlock) (*contracts.MemoryBlock, error)) (*contracts.MemoryBlock, error) {
 		// TODO: would be nice to group all of those loose LinkEdit blocks into a few
 		// but I can't find a way to do it in a way that works for both the x86_86h split cache and the arm64e more consolidated one
 		// ple, err := me.findOrCreateUniqueBlock(categoryPostLinkEdit, func(i int, block *contracts.MemoryBlock) bool {
@@ -145,7 +145,7 @@ func (me *parser) getMachOLoadCommandParser(frame *blockFrame, baseCommand subco
 	}
 
 	addSegment := func(segment *subcontracts.SegmentCommand64) machOLoadCommandParser {
-		addSegmentHelper := func(frame *blockFrame, base, after subcontracts.Address, linkEdit *linkEditData, prefix string) (*contracts.MemoryBlock, error) {
+		addSegmentHelper := func(frame *blockFrame, _base, after subcontracts.Address, linkEdit *linkEditData, prefix string) (*contracts.MemoryBlock, error) {
 			blob, err := me.createBlobBlock(frame, "VMAddr", segment.VMAddr, "VMSize", segment.VMSize, fmt.Sprintf("%sSegment %s", prefix, commons.FromCString(segment.SegName[:])))
 			if err != nil {
 				return nil, err
@@ -169,7 +169,7 @@ func (me *parser) getMachOLoadCommandParser(frame *blockFrame, baseCommand subco
 			if commons.FromCString(segment.SegName[:]) == "__LINKEDIT" {
 				absAddr := segment.VMAddr.AddBase(frame.parent.Address).Calculate(me.slide)
 
-				block, err := me.findOrCreateUniqueBlock(categoryLinkEdit, func(i int, block *contracts.MemoryBlock) bool {
+				block, err := me.findOrCreateUniqueBlock(categoryLinkEdit, func(_i int, block *contracts.MemoryBlock) bool {
 					return block.Address == absAddr
 				}, func() (*contracts.MemoryBlock, error) {
 					return addSegmentHelper(frame, base, after, linkEdit, "")
@@ -194,10 +194,10 @@ func (me *parser) getMachOLoadCommandParser(frame *blockFrame, baseCommand subco
 		data        interface{}
 	}
 
-	addLEOffsetFields := func(label string, fields map[string]fieldLookup, extra func(block *contracts.MemoryBlock) error) machOLoadCommandParser {
-		return func(frame *blockFrame, path string, base, after subcontracts.Address, linkEdit *linkEditData) (*contracts.MemoryBlock, error) {
+	addLEOffsetFields := func(_label string, fields map[string]fieldLookup, extra func(block *contracts.MemoryBlock) error) machOLoadCommandParser {
+		return func(frame *blockFrame, path string, _base, after subcontracts.Address, linkEdit *linkEditData) (*contracts.MemoryBlock, error) {
 			for label, field := range fields {
-				_, err := usePostLinkEdit(frame.parent, func(ple *contracts.MemoryBlock) (*contracts.MemoryBlock, error) {
+				_, err := usePostLinkEdit(frame.parent, func(_ple *contracts.MemoryBlock) (*contracts.MemoryBlock, error) {
 					if field.offset == 0 {
 						return nil, nil
 					}
@@ -250,17 +250,17 @@ func (me *parser) getMachOLoadCommandParser(frame *blockFrame, baseCommand subco
 	}
 
 	// FIXME: untestable
-	handleObsolete := func(frame *blockFrame, path string, base, after subcontracts.Address, linkEdit *linkEditData) (*contracts.MemoryBlock, error) {
+	handleObsolete := func(_frame *blockFrame, path string, base, after subcontracts.Address, linkEdit *linkEditData) (*contracts.MemoryBlock, error) {
 		return nil, fmt.Errorf("obsolete load command, unsupported")
 	}
 
 	// FIXME: untestable AND difficult to find
-	handlePrivate := func(frame *blockFrame, path string, base, after subcontracts.Address, linkEdit *linkEditData) (*contracts.MemoryBlock, error) {
+	handlePrivate := func(_frame *blockFrame, path string, base, after subcontracts.Address, linkEdit *linkEditData) (*contracts.MemoryBlock, error) {
 		return nil, fmt.Errorf("private load command, unsupported")
 	}
 
 	// FIXME: unused
-	handleUnused := func(frame *blockFrame, path string, base, after subcontracts.Address, linkEdit *linkEditData) (*contracts.MemoryBlock, error) {
+	handleUnused := func(_frame *blockFrame, path string, base, after subcontracts.Address, linkEdit *linkEditData) (*contracts.MemoryBlock, error) {
 		return nil, fmt.Errorf("unused load command (%s), currently unsupported", subcontracts.LC2String(baseCommand.Cmd))
 	}
 
@@ -299,7 +299,7 @@ func (me *parser) getMachOLoadCommandParser(frame *blockFrame, baseCommand subco
 				return nil, err
 			}
 			strAddr := calculateLEAddress(linkEdit, realCommand.StrOff)
-			_, err = usePostLinkEdit(frame.parent, func(ple *contracts.MemoryBlock) (*contracts.MemoryBlock, error) {
+			_, err = usePostLinkEdit(frame.parent, func(_ple *contracts.MemoryBlock) (*contracts.MemoryBlock, error) {
 				return me.findOrCreateUniqueBlock(categoryStrings, func(i int, block *contracts.MemoryBlock) bool {
 					return block.Address == strAddr.Calculate(me.slide)
 				}, func() (*contracts.MemoryBlock, error) {
@@ -494,7 +494,7 @@ func (me *parser) getMachOLoadCommandParser(frame *blockFrame, baseCommand subco
 	case subcontracts.LC_BUILD_VERSION:
 		realCommand := subcontracts.BuildVersionCommand{}
 		subCommand = &realCommand
-		postParsing = func(frame *blockFrame, path string, base, after subcontracts.Address, linkEdit *linkEditData) (*contracts.MemoryBlock, error) {
+		postParsing = func(frame *blockFrame, _path string, base, after subcontracts.Address, linkEdit *linkEditData) (*contracts.MemoryBlock, error) {
 			_, _, err := me.parseAndAddArray(frame, "", after, "NTools", uint64(realCommand.NTools), &subcontracts.BuildToolVersion{}, "Tools")
 			return nil, err
 		}

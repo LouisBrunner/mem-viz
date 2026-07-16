@@ -199,7 +199,7 @@ const (
 	LC_FILESET_ENTRY            = (0x35 | LC_REQ_DYLD) // used with fileset_entry_command
 )
 
-func LC2String(lc uint32) string {
+func LC2String(lc uint32) string { //nolint:gocyclo
 	switch lc {
 	case LC_SEGMENT:
 		return "SEGMENT"

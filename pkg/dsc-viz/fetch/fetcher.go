@@ -1,6 +1,7 @@
 package fetch
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"unsafe"
@@ -43,10 +44,12 @@ type fetcher[T contracts.Cache, F fetchProcessor[T]] struct {
 }
 
 func (me *fetcher[T, F]) Close() error {
+	errs := make([]error, 0, len(me.subs))
 	for _, sub := range me.subs {
-		sub.Close()
+		errs = append(errs, sub.Close())
 	}
-	return me.main.Close()
+	errs = append(errs, me.main.Close())
+	return errors.Join(errs...)
 }
 
 func (me *fetcher[T, F]) SubCaches() []contracts.SubCache {
@@ -126,7 +129,10 @@ func newFetcher[T contracts.Cache, F fetchProcessor[T]](logger *logrus.Logger, m
 	fetcher := &fetcher[T, F]{logger: logger, main: main, processor: processor}
 	defer func() {
 		if ferr != nil {
-			fetcher.Close()
+			err := fetcher.Close()
+			if err != nil {
+				logger.Errorf("failed to close fetcher: %v", err)
+			}
 		}
 	}()
 	err := fetcher.fetchSubCaches()

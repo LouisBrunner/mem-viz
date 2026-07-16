@@ -18,7 +18,7 @@ func isOnEdge(child, parent *contracts.MemoryBlock) bool {
 func (me *parser) addChildDeep(parent, child *contracts.MemoryBlock) *contracts.MemoryBlock {
 	isEmpty := child.GetSize() == 0
 	for i, curr := range parent.Content {
-		if parsingutils.IsInsideOf(child, curr) && !(isEmpty && isOnEdge(child, curr)) {
+		if parsingutils.IsInsideOf(child, curr) && (!isEmpty || !isOnEdge(child, curr)) {
 			return me.addChildDeep(curr, child)
 		} else if curr.Address > child.Address || (isEmpty && curr.Address == child.Address) {
 			parent.Content = slices.Insert(parent.Content, i, child)
@@ -29,7 +29,7 @@ func (me *parser) addChildDeep(parent, child *contracts.MemoryBlock) *contracts.
 	return parent
 }
 
-func (me *parser) addChild(parent, child *contracts.MemoryBlock) *contracts.MemoryBlock {
+func (me *parser) addChild(_parent, child *contracts.MemoryBlock) *contracts.MemoryBlock {
 	sameAddress, found := me.allBlocks[child.Address]
 	if !found {
 		sameAddress = &[]*contracts.MemoryBlock{}
@@ -137,7 +137,7 @@ func addValue(parent *contracts.MemoryBlock, name string, value interface{}, off
 				if label == "" {
 					label = "???"
 				}
-				b.WriteString(fmt.Sprintf("[%02d/%s]=%#012x", i, label, v))
+				fmt.Fprintf(&b, "[%02d/%s]=%#012x", i, label, v)
 				first = false
 			}
 			b.WriteString("}")

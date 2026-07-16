@@ -16,8 +16,8 @@ func valueDetails(offset uint64, value *contracts.MemoryValue) string {
 	return fmt.Sprintf("%q (%#04x-%#04x)", value.Name, offset+value.Offset, offset+value.Offset+uint64(value.Size))
 }
 
-func Check(logger *logrus.Logger, mb *contracts.MemoryBlock) error {
-	return commons.VisitEachBlock(mb, func(ctx commons.VisitContext, block *contracts.MemoryBlock) error {
+func Check(_logger *logrus.Logger, mb *contracts.MemoryBlock) error {
+	return commons.VisitEachBlock(mb, func(_ctx commons.VisitContext, block *contracts.MemoryBlock) error {
 		size := uintptr(block.GetSize())
 		parentEnd := block.Address + size
 

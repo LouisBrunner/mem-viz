@@ -71,7 +71,10 @@ func cacheFromPath(logger *logrus.Logger, path string) (_ *fromFileCache, ferr e
 	}
 	defer func() {
 		if ferr != nil {
-			file.Close()
+			err := file.Close()
+			if err != nil {
+				logger.Errorf("file-cache: failed to close file %q: %v", path, err)
+			}
 		}
 	}()
 
@@ -80,11 +83,11 @@ func cacheFromPath(logger *logrus.Logger, path string) (_ *fromFileCache, ferr e
 
 type fromFileProcessor struct{}
 
-func (me fromFileProcessor) CacheFromEntryV2(logger *logrus.Logger, main *fromFileCache, i int64, entry contracts.DYLDSubcacheEntryV2) (contracts.Cache, error) {
+func (me fromFileProcessor) CacheFromEntryV2(logger *logrus.Logger, main *fromFileCache, _i int64, entry contracts.DYLDSubcacheEntryV2) (contracts.Cache, error) {
 	suffix := commons.FromCString(entry.FileSuffix[:])
 	return cacheFromPath(logger, fmt.Sprintf("%s%s", main.file.Name(), suffix))
 }
 
-func (me fromFileProcessor) CacheFromEntryV1(logger *logrus.Logger, main *fromFileCache, i int64, entry contracts.DYLDSubcacheEntryV1) (contracts.Cache, error) {
+func (me fromFileProcessor) CacheFromEntryV1(logger *logrus.Logger, main *fromFileCache, i int64, _entry contracts.DYLDSubcacheEntryV1) (contracts.Cache, error) {
 	return cacheFromPath(logger, fmt.Sprintf("%s.%d", main.file.Name(), i+1))
 }

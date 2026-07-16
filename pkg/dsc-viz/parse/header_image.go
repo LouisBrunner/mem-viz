@@ -66,7 +66,7 @@ func (me *parser) addImage(frame *blockFrame, image *contracts.MemoryBlock, addr
 func (me *parser) addImageTEXT(frame *blockFrame, image *contracts.MemoryBlock, path, addressName string, address subcontracts.Address, sizeName string, size uint64) error {
 	me.logger.Debugf("parsing TEXT for %s", path)
 	absAddr := address.AddBase(frame.parent.Address).Calculate(me.slide)
-	currBlock, err := me.findOrCreateUniqueBlock(categoryImages, func(i int, block *contracts.MemoryBlock) bool {
+	currBlock, err := me.findOrCreateUniqueBlock(categoryImages, func(_i int, block *contracts.MemoryBlock) bool {
 		return parsingutils.IsInsideOf(&contracts.MemoryBlock{Address: absAddr}, &contracts.MemoryBlock{Address: block.Address, Size: roundUp(block.GetSize(), page)})
 	}, func() (*contracts.MemoryBlock, error) {
 		return me.createEmptyBlock(frame.parent, "Images TEXT", address)
@@ -113,7 +113,7 @@ func (me *parser) addImageTEXT(frame *blockFrame, image *contracts.MemoryBlock, 
 
 func (me *parser) addImagePath(frame *blockFrame, image *contracts.MemoryBlock, path, pathOffsetName string, pathOffset subcontracts.Address) error {
 	absAddr := pathOffset.AddBase(frame.parent.Address).Calculate(me.slide)
-	pathBlock, err := me.findOrCreateUniqueBlock(categoryPaths, func(i int, pathBlock *contracts.MemoryBlock) bool {
+	pathBlock, err := me.findOrCreateUniqueBlock(categoryPaths, func(_i int, pathBlock *contracts.MemoryBlock) bool {
 		return parsingutils.IsInsideOf(&contracts.MemoryBlock{Address: absAddr}, pathBlock)
 	}, func() (*contracts.MemoryBlock, error) {
 		return me.createEmptyBlock(frame.parent, "Paths", pathOffset)

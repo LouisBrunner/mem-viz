@@ -69,7 +69,10 @@ func getOutput(logger *logrus.Logger, outputFormat, outputFile string) (func(mb 
 			return nil, nil, err
 		}
 		cleanupFn = func() {
-			w.Close()
+			err := w.Close()
+			if err != nil {
+				logger.Errorf("failed to close output file: %v", err)
+			}
 		}
 	}
 

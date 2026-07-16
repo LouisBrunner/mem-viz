@@ -7,7 +7,7 @@ import (
 	subcontracts "github.com/LouisBrunner/mem-viz/pkg/dsc-viz/contracts"
 )
 
-func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cache, label string, offset subcontracts.Address) (*contracts.MemoryBlock, *contracts.MemoryBlock, error) {
+func (me *parser) addCache(parent *contracts.MemoryBlock, cache subcontracts.Cache, label string, offset subcontracts.Address) (*contracts.MemoryBlock, *contracts.MemoryBlock, error) { //nolint:gocyclo
 	block, err := me.createEmptyBlock(parent, fmt.Sprintf("%s Area", label), offset)
 	if err != nil {
 		return nil, nil, err

@@ -39,7 +39,12 @@ func (me *parser) parse(file string) (*contracts.MemoryBlock, error) {
 		if err != nil {
 			return nil, err
 		}
-		defer m.Close()
+		defer func() {
+			err := m.Close()
+			if err != nil {
+				me.logger.Errorf("failed to close macho file: %v", err)
+			}
+		}()
 
 		return me.addArch(file, m, uint64(st.Size()))
 	}

@@ -15,7 +15,7 @@ type VisitContext = *VisitContextV
 
 type BlockVisitor = func(ctx VisitContext, block *contracts.MemoryBlock) error
 type ValueVisitor = func(ctx VisitContext, block *contracts.MemoryBlock, value *contracts.MemoryValue) error
-type LinkVisitor = func(ctx VisitContext, block *contracts.MemoryBlock, value *contracts.MemoryValue, link *contracts.MemoryLink) error
+type LinkVisitor = func(ctx VisitContext, block *contracts.MemoryBlock, value *contracts.MemoryValue, link *contracts.MemoryLink)
 
 // FIXME: recursion everywhere... bad!
 
@@ -90,9 +90,7 @@ func VisitEachValue(root *contracts.MemoryBlock, visitor ValueVisitor) error {
 func VisitEachLink(root *contracts.MemoryBlock, visitor LinkVisitor) error {
 	return VisitEachValue(root, func(ctx VisitContext, block *contracts.MemoryBlock, value *contracts.MemoryValue) error {
 		for _, link := range value.Links {
-			if err := visitor(ctx, block, value, link); err != nil {
-				return err
-			}
+			visitor(ctx, block, value, link)
 		}
 		return nil
 	})

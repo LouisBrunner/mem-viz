@@ -49,7 +49,7 @@ func (me *parser) parseMappingsWithSlide(frame *blockFrame, mappingHeaders []arr
 	})
 }
 
-func (me *parser) parseMappingWithSlide(frame *blockFrame, i int, mapping arrayElement, linkEdit subcontracts.DYLDCacheMappingAndSlideInfo) error {
+func (me *parser) parseMappingWithSlide(frame *blockFrame, i int, mapping arrayElement, linkEdit subcontracts.DYLDCacheMappingAndSlideInfo) error { //nolint:gocyclo
 	mappingData, cast := mapping.Data.(subcontracts.DYLDCacheMappingAndSlideInfo)
 	if !cast {
 		return fmt.Errorf("invalid mapping with slide info type: %T", mapping.Data)
@@ -170,7 +170,7 @@ func (me *parser) parseMappingCommon(frame *blockFrame, mapping *contracts.Memor
 		return err
 	}
 
-	_, err = me.findOrCreateUniqueBlock(categoryMappings, func(j int, pathBlock *contracts.MemoryBlock) bool {
+	_, err = me.findOrCreateUniqueBlock(categoryMappings, func(j int, _pathBlock *contracts.MemoryBlock) bool {
 		return i == j
 	}, func() (*contracts.MemoryBlock, error) {
 		return me.createCommonBlock(sideFrame.parent, mapping.Name, data.Address, data.Size)

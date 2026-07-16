@@ -120,7 +120,7 @@ func (me *parser) parse(fetcher subcontracts.Fetcher) (*contracts.MemoryBlock, e
 	return root, nil
 }
 
-func (me *parser) rebalance(root *contracts.MemoryBlock, anchors map[*contracts.MemoryBlock]struct{}) {
+func (me *parser) rebalance(root *contracts.MemoryBlock, _anchors map[*contracts.MemoryBlock]struct{}) {
 	addresses := maps.Keys(me.allBlocks)
 	slices.Sort(addresses)
 

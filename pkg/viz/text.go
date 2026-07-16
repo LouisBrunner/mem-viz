@@ -21,7 +21,10 @@ func (me *outputter) Text(m contracts.MemoryBlock) error {
 
 	const indentStr = "  "
 
-	links := getLinks(&m)
+	links, err := getLinks(&m)
+	if err != nil {
+		return err
+	}
 
 	linksOrder := maps.Keys(links)
 	slices.Sort(linksOrder)
@@ -121,7 +124,7 @@ func (me *outputter) Text(m contracts.MemoryBlock) error {
 	}
 
 	lastChildrenEnd := uintptr(0)
-	err := commons.VisitEachBlockAdvanced(&m, commons.VisitorSetup{
+	err = commons.VisitEachBlockAdvanced(&m, commons.VisitorSetup{
 		BeforeChildren: func(ctx commons.VisitContext, block *contracts.MemoryBlock) error {
 			if ctx.PreviousSibling != nil {
 				flushUnused(lastChildrenEnd, block.Address, ctx.Depth)

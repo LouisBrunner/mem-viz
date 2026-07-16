@@ -9,7 +9,7 @@ import (
 	"github.com/LouisBrunner/mem-viz/pkg/parsingutils"
 )
 
-func (me *parser) addSubCacheEntry(parent, headerBlock, subCache *contracts.MemoryBlock, header subcontracts.DYLDCacheHeaderV3, v2 *subcontracts.DYLDSubcacheEntryV2, v1 *subcontracts.DYLDSubcacheEntryV1, index uint64) error {
+func (me *parser) addSubCacheEntry(parent, headerBlock, subCache *contracts.MemoryBlock, _header subcontracts.DYLDCacheHeaderV3, v2 *subcontracts.DYLDSubcacheEntryV2, v1 *subcontracts.DYLDSubcacheEntryV1, index uint64) error {
 	var block *contracts.MemoryBlock
 	var err error
 	label := "Subcache Entry"
