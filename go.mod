@@ -5,7 +5,7 @@ go 1.26.2
 tool honnef.co/go/tools/cmd/staticcheck
 
 require (
-	github.com/blacktop/go-macho v1.1.282
+	github.com/blacktop/go-macho v1.1.283
 	github.com/dustin/go-humanize v1.0.1
 	github.com/lunixbochs/struc v0.0.0-20241101090106-8d528fa2c543
 	github.com/sirupsen/logrus v1.10.2
