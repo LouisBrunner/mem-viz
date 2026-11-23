@@ -4,9 +4,11 @@
 package fetch
 
 import (
-	"fmt"
+	"errors"
 )
 
+var errNotAvailable = errors.New("not available on this platform")
+
 func sharedRegionCheckNP() (uintptr, error) {
-	return 0, fmt.Errorf("not available on this platform")
+	return 0, errNotAvailable
 }

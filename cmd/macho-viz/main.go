@@ -21,10 +21,10 @@ func main() {
 		},
 		CheckExtraFrom: func(params args) ([]bool, []string) {
 			return []bool{
-					params.file != "",
-				}, []string{
-					"file",
-				}
+				params.file != "",
+			}, []string{
+				"file",
+			}
 		},
 		GetMemory: func(logger *logrus.Logger, params args) (*contracts.MemoryBlock, error) {
 			if params.file == "" {
