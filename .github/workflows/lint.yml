@@ -31,4 +31,4 @@ jobs:
     permissions:
       contents: read
     with:
-      run: make test
+      run: go test -v ./...

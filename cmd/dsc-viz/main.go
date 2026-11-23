@@ -29,16 +29,16 @@ func main() {
 		},
 		CheckExtraFrom: func(params args) ([]bool, []string) {
 			return []bool{
-				params.fromArch != "",
-				params.fromFile != "",
-				params.fromCurrentArch,
-				params.fromMemory,
-			}, []string{
-				"from-arch",
-				"from-file",
-				"from-current-arch",
-				"from-memory",
-			}
+					params.fromArch != "",
+					params.fromFile != "",
+					params.fromCurrentArch,
+					params.fromMemory,
+				}, []string{
+					"from-arch",
+					"from-file",
+					"from-current-arch",
+					"from-memory",
+				}
 		},
 		GetMemory: func(logger *logrus.Logger, params args) (*contracts.MemoryBlock, error) {
 			var fetcher subcontracts.Fetcher
